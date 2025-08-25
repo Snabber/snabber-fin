@@ -65,11 +65,11 @@ export default function Dashboard() {
   const handleBulkCategoryChange = async () => {
     if (!bulkCategory || selectedTransactions.length === 0) return;
     try {
-        const res = await fetch("/api/transactions/update-category", {
+      const res = await fetch("/api/transactions/update-category", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactionIds: selectedTransactions, category: bulkCategory }),
-        });
+      });
       if (!res.ok) throw new Error("Erro na atualização em massa");
       // Atualiza localmente
       setTransactions((prev) =>
@@ -87,70 +87,93 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-[var(--color-purple)] mb-4">Dashboard</h1>
+    <div style={{ padding: "2rem", fontFamily: "'Museo Sans', sans-serif", background: "#f5f5f5" }}>
+      <h1 style={{ fontSize: "2rem", fontWeight: "bold", color: "#7c2ea0", marginBottom: "1rem" }}>
+        Dashboard
+      </h1>
+
       <button
-        className="mb-4 bg-[var(--color-purple)] text-white px-4 py-2 rounded hover:bg-[var(--color-orange)]"
+        style={{
+          marginBottom: "1rem",
+          backgroundColor: "#7c2ea0",
+          color: "#fff",
+          padding: "0.6rem 1.2rem",
+          borderRadius: "6px",
+          cursor: "pointer",
+          border: "none",
+          fontWeight: "bold",
+        }}
         onClick={() => setShowForm(!showForm)}
       >
         {showForm ? "Fechar" : "Adicionar Transação"}
       </button>
 
       {showForm && (
-        <form onSubmit={handleAddTransaction} className="mb-6 bg-white p-4 rounded shadow-md flex flex-col gap-2 w-[400px]">
+        <form
+          onSubmit={handleAddTransaction}
+          style={{
+            marginBottom: "1.5rem",
+            backgroundColor: "#fff",
+            padding: "1rem",
+            borderRadius: "8px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+            maxWidth: "420px",
+          }}
+        >
           <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
           <input type="number" placeholder="Valor" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
           <input type="text" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
           <input type="text" placeholder="Comentário" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
           <input type="text" placeholder="Conta" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
-          <button className="bg-[var(--color-purple)] text-white px-2 py-1 rounded hover:bg-[var(--color-orange)]" type="submit">Adicionar</button>
+          <button type="submit" style={{ backgroundColor: "#7c2ea0", color: "#fff", padding: "0.4rem 0.8rem", borderRadius: "4px", cursor: "pointer", border: "none", fontWeight: "bold" }}>
+            Adicionar
+          </button>
         </form>
       )}
 
-      <div className="mb-4 flex items-center gap-2">
-        <button onClick={selectAll} className="px-2 py-1 bg-gray-300 rounded">Selecionar Todos</button>
-        <button onClick={deselectAll} className="px-2 py-1 bg-gray-300 rounded">Desmarcar Todos</button>
+      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <button onClick={selectAll} style={{ padding: "0.4rem 0.8rem", backgroundColor: "#ccc", borderRadius: "4px", cursor: "pointer", border: "none" }}>Selecionar Todos</button>
+        <button onClick={deselectAll} style={{ padding: "0.4rem 0.8rem", backgroundColor: "#ccc", borderRadius: "4px", cursor: "pointer", border: "none" }}>Desmarcar Todos</button>
         <input
           type="text"
           placeholder="Categoria em massa"
           value={bulkCategory}
           onChange={(e) => setBulkCategory(e.target.value)}
-          className="px-2 py-1 border rounded"
+          style={{ padding: "0.4rem", borderRadius: "4px", border: "1px solid #ccc" }}
         />
-        <button onClick={handleBulkCategoryChange} className="px-2 py-1 bg-[var(--color-purple)] text-white rounded hover:bg-[var(--color-orange)]">
+        <button onClick={handleBulkCategoryChange} style={{ padding: "0.4rem 0.8rem", backgroundColor: "#7c2ea0", color: "#fff", borderRadius: "4px", cursor: "pointer", border: "none", fontWeight: "bold" }}>
           Atualizar Categoria
         </button>
       </div>
 
-      <table className="w-full border border-gray-300 bg-white rounded shadow">
-        <thead className="bg-[var(--color-light)]">
+      <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "#fff", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+        <thead style={{ backgroundColor: "#eaeaea" }}>
           <tr>
-            <th className="border px-2 py-1">Sel.</th>
-            <th className="border px-2 py-1">Data</th>
-            <th className="border px-2 py-1">Descrição</th>
-            <th className="border px-2 py-1">Valor</th>
-            <th className="border px-2 py-1">Categoria</th>
-            <th className="border px-2 py-1">Comentário</th>
-            <th className="border px-2 py-1">Conta</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Sel.</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Data</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Descrição</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Valor</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Categoria</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Comentário</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}>Conta</th>
           </tr>
         </thead>
         <tbody>
-          {transactions.map((t) => (
-            <tr key={t.transaction_id}>
-              <td className="border px-2 py-1 text-center">
-                <input
-                  type="checkbox"
-                  checked={selectedTransactions.includes(t.transaction_id)}
-                  onChange={() => toggleSelect(t.transaction_id)}
-                />
+          {transactions.map((t, idx) => (
+            <tr key={t.transaction_id} style={{ backgroundColor: idx % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+              <td style={{ textAlign: "center", padding: "0.5rem", borderBottom: "1px solid #ddd" }}>
+                <input type="checkbox" checked={selectedTransactions.includes(t.transaction_id)} onChange={() => toggleSelect(t.transaction_id)} />
               </td>
-              <td className="border px-2 py-1">{t.date}</td>
-              <td className="border px-2 py-1">{t.description}</td>
-              <td className="border px-2 py-1">{t.amount}</td>
-              <td className="border px-2 py-1">{t.category}</td>
-              <td className="border px-2 py-1">{t.comment}</td>
-              <td className="border px-2 py-1">{t.account}</td>
+                <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.date}</td>
+              <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.description}</td>
+              <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.amount}</td>
+              <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.category}</td>
+              <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.comment}</td>
+              <td style={{ padding: "0.5rem", borderBottom: "1px solid #ddd" }}>{t.account}</td>
             </tr>
           ))}
         </tbody>
