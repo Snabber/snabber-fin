@@ -12,9 +12,9 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const id = params.id;
+    const { id } = await context.params;
     const body = await req.json();
     const { date, description, amount, category, comment, account } = body;
 
