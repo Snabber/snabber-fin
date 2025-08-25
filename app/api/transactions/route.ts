@@ -1,71 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+});
 
-  if (!userId) {
-    return new Response(JSON.stringify({ error: "userId não fornecido" }), { status: 400 });
-  }
+export async function GET(req: NextRequest) {
+    try {
+        const userId = req.nextUrl.searchParams.get("userId");
+        const year = req.nextUrl.searchParams.get("year");
+        const month = req.nextUrl.searchParams.get("month"); // opcional
 
-  try {
-    const connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      port: Number(process.env.DB_PORT),
-    });
+        if (!userId) return NextResponse.json([]);
 
-    const [rows] = await connection.execute(
-      "SELECT * FROM money_transactions WHERE user_id = ? ORDER BY date DESC",
-      [userId]
-    );
+        let query = "SELECT * FROM money_transactions WHERE user_id = ?";
+        const params: any[] = [userId];
 
-    await connection.end();
+        if (year) {
+            query += " AND YEAR(date) = ?";
+            params.push(year);
+        } else {
+            const currentYear = new Date().getFullYear().toString();
+            query += " AND YEAR(date) = ?";
+            params.push(currentYear);
+        }
+        if (month && month !== "Todos") {
+            query += " AND MONTH(date) = ?";
+            params.push(month);
+        }
 
-    return new Response(JSON.stringify(rows), { status: 200 });
-  } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: "Erro ao buscar transações" }), { status: 500 });
-  }
-}
+        query += " ORDER BY date DESC";
 
-// === Adicionar POST ===
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { date, description, amount, category, comment, account, userId } = body;
-
-    if (!userId || !date || !description || !amount) {
-      return new Response(JSON.stringify({ error: "Dados incompletos" }), { status: 400 });
+        const [rows] = await pool.query(query, params);
+        return NextResponse.json(rows);
+    } catch (err) {
+        console.error(err);
+        return NextResponse.json([]);
     }
-
-    const connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      port: Number(process.env.DB_PORT),
-    });
-
-    const [result] = await connection.execute(
-      `INSERT INTO money_transactions (date, description, amount, category, comment, account, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [date, description, amount, category || "", comment || "", account || "", userId]
-    );
-
-    const transactionId = (result as any).insertId;
-
-    await connection.end();
-
-    // Retorna a transação criada
-    return new Response(
-      JSON.stringify({ transaction_id: transactionId, date, description, amount, category, comment, account }),
-      { status: 201 }
-    );
-  } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: "Erro ao adicionar transação" }), { status: 500 });
-  }
 }

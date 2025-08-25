@@ -10,7 +10,12 @@ function formatDate(dateStr: string) {
     return `${day}-${month}-${year}`;
 }
 
-
+// Função para formatar como moeda BRL
+function formatCurrency(value: number | string) {
+    const num = typeof value === "string" ? Number(value) : value;
+    if (isNaN(num)) return value;
+    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 type Transaction = {
     transaction_id: number;
@@ -30,8 +35,11 @@ export default function Dashboard() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
     const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
+
+    const getToday = () => new Date().toISOString().slice(0, 10);
+
     const [form, setForm] = useState({
-        date: "",
+        date: getToday(),
         description: "",
         amount: "",
         category: "",
@@ -42,15 +50,57 @@ export default function Dashboard() {
     const [bulkCategory, setBulkCategory] = useState("");
     const [filterText, setFilterText] = useState("");
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [accounts, setAccounts] = useState<string[]>([]);
 
     const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "1";
 
     const displayedTransactions = sortTransactions(filterTransactions(filteredTransactions));
 
+    const monthsList = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    const [yearFilter, setYearFilter] = useState<string>(""); // Começa vazio
+    const [monthFilter, setMonthFilter] = useState<string>("Todos");
+    const [availableYears, setAvailableYears] = useState<string[]>([]);
+
+    // Sempre busca todos os anos do usuário, independente do filtro
+    useEffect(() => {
+        if (!userId) return;
+        fetch(`/api/years?userId=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                const years = data.years || [];
+                setAvailableYears(years);
+                // Seleciona o ano atual na primeira carga
+                if (!yearFilter && years.length > 0) {
+                    const currentYear = new Date().getFullYear().toString();
+                    setYearFilter(years.includes(currentYear) ? currentYear : years[0]);
+                }
+            })
+            .catch(err => console.error(err));
+    }, [userId]);
+
+    useEffect(() => {
+        if (!userId) return;
+        const params = new URLSearchParams({ userId, year: yearFilter });
+        if (monthFilter !== "Todos") params.append("month", (monthsList.findIndex(m => m === monthFilter) + 1).toString());
+        fetch(`/api/transactions?${params.toString()}`)
+            .then((res) => res.json())
+            .then((data) => {
+                setTransactions(data);
+                setFilteredTransactions(data);
+            })
+            .catch((err) => console.error(err));
+    }, [userId, yearFilter, monthFilter]);
 
     // Função para ordenar
     function sortTransactions(transactions: Transaction[]) {
-        if (!sortConfig) return transactions;
+        if (!sortConfig) {
+            // Ordena por data decrescente (mais recente primeiro)
+            return [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }
         return [...transactions].sort((a, b) => {
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
@@ -82,6 +132,24 @@ export default function Dashboard() {
                 setFilteredTransactions(data);
             })
             .catch((err) => console.error(err));
+    }, [userId]);
+
+    useEffect(() => {
+        async function fetchCategories() {
+            const res = await fetch(`/api/categories?userId=${userId}`);
+            const data = await res.json();
+            setCategories(data.categories || []);
+        }
+        fetchCategories();
+    }, [userId]);
+
+    useEffect(() => {
+        async function fetchAccounts() {
+            const res = await fetch(`/api/accounts?userId=${userId}`);
+            const data = await res.json();
+            setAccounts(data.accounts || []);
+        }
+        fetchAccounts();
     }, [userId]);
 
     // Filtra transações baseado no input de texto
@@ -120,16 +188,31 @@ export default function Dashboard() {
                 );
                 setEditingId(null);
             } else {
+                // Se não houver data, coloca a data de hoje automaticamente
+                const today = new Date().toISOString().slice(0, 10);
                 const res = await fetch("/api/transactions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ...form, amount: Number(form.amount), userId }),
+                    body: JSON.stringify({ 
+                        ...form, 
+                        date: form.date || today, 
+                        amount: Number(form.amount), 
+                        userId 
+                    }),
                 });
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const newTransaction = await res.json();
                 setTransactions((prev) => [newTransaction, ...prev]);
             }
-            setForm({ date: "", description: "", amount: "", category: "", comment: "", account: "" });
+            // Quando fechar o formulário ou adicionar/editar, resete o form com a data de hoje:
+            setForm({
+                date: getToday(),
+                description: "",
+                amount: "",
+                category: "",
+                comment: "",
+                account: "",
+            });
             setShowForm(false);
         } catch (err) {
             console.error(err);
@@ -137,8 +220,14 @@ export default function Dashboard() {
     };
 
     const handleEditClick = (transaction: Transaction) => {
+        // Converte para yyyy-MM-dd
+        const dateObj = new Date(transaction.date);
+        const formattedDate = !isNaN(dateObj.getTime())
+            ? dateObj.toISOString().slice(0, 10)
+            : transaction.date;
+
         setForm({
-            date: transaction.date,
+            date: formattedDate,
             description: transaction.description,
             amount: transaction.amount.toString(),
             category: transaction.category,
@@ -200,9 +289,63 @@ export default function Dashboard() {
         }
     };
 
+    // Cálculo dos totais
+    const totalAmount = displayedTransactions
+        .filter(t => t.category !== "Ignorado")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const totalSaidas = displayedTransactions
+        .filter(t => t.amount < 0 && t.category !== "Ignorado")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const totalEntradas = displayedTransactions
+        .filter(t => t.amount > 0)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
             <h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>
+
+            {/* Filtros de Ano e Mês */}
+            <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", alignItems: "center" }}>
+                <label>
+                    Ano:&nbsp;
+                    <select
+                        value={yearFilter}
+                        onChange={e => setYearFilter(e.target.value)}
+                        style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
+                    >
+                        {availableYears.map(year => (
+                            <option key={year} value={year}>{year}</option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    Mês:&nbsp;
+                    <select
+                        value={monthFilter}
+                        onChange={e => setMonthFilter(e.target.value)}
+                        style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
+                    >
+                        <option value="Todos">Todos</option>
+                        {monthsList.map(month => (
+                            <option key={month} value={month}>{month}</option>
+                        ))}
+                    </select>
+                </label>
+            </div>
+
+            <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", alignItems: "center" }}>
+                <div style={{ fontWeight: "bold", color: "#7c2ea0" }}>
+                    Total:&nbsp;{formatCurrency(totalAmount)}
+                </div>
+                <div style={{ fontWeight: "bold", color: "#d32f2f" }}>
+                    Saídas:&nbsp;{formatCurrency(totalSaidas)}
+                </div>
+                <div style={{ fontWeight: "bold", color: "#388e3c" }}>
+                    Entradas:&nbsp;{formatCurrency(totalEntradas)}
+                </div>
+            </div>
 
             <input
                 type="text"
@@ -242,12 +385,100 @@ export default function Dashboard() {
                         maxWidth: "400px",
                     }}
                 >
-                    <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+                    {/* Data e Valor na mesma linha, ocupando 100% do espaço do formulário */}
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", width: "100%" }}>
+                        <input
+                            type="date"
+                            value={form.date}
+                            onChange={(e) => setForm({ ...form, date: e.target.value })}
+                            required
+                            style={{ flex: 1, minWidth: 0 }}
+                        />
+                        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+                            <input
+                                type="text"
+                                placeholder="Valor"
+                                value={form.amount}
+                                onChange={e => {
+                                    let val = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+                                    val = val.split(".").length > 2 ? val.replace(/\.+$/, "") : val;
+                                    setForm({ ...form, amount: val });
+                                }}
+                                required
+                                style={{
+                                    paddingLeft: "2.2rem",
+                                    width: "100%",
+                                    boxSizing: "border-box",
+                                }}
+                            />
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    left: "0.7rem",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#7c2ea0",
+                                    fontWeight: "bold",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                R$
+                            </span>
+                        </div>
+                    </div>
+                    {/* ...restante do formulário... */}
                     <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
-                    <input type="number" placeholder="Valor" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
-                    <input type="text" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <select
+                            value={form.category}
+                            onChange={e => setForm({ ...form, category: e.target.value })}
+                            style={{ flex: 1 }}
+                            required
+                        >
+                            <option value="">Selecione</option>
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Ou digite uma categoria"
+                            value={form.category}
+                            onChange={e => setForm({ ...form, category: e.target.value })}
+                            style={{ flex: 2 }}
+                            required
+                        />
+                    </div>
                     <input type="text" placeholder="Comentário" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
-                    <input type="text" placeholder="Conta" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <select
+                            value={form.account}
+                            onChange={e => setForm({ ...form, account: e.target.value })}
+                            style={{
+                                flex: 1,
+                                maxWidth: "120px", // limite de largura
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden"
+                            }}
+                            required
+                        >
+                            <option value="">Selecione</option>
+                            {accounts.map(acc => (
+                                <option key={acc} value={acc}>
+                                    {acc.length > 20 ? acc.slice(0, 20) + "..." : acc}
+                                </option>
+                            ))}
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Ou digite uma conta"
+                            value={form.account}
+                            onChange={e => setForm({ ...form, account: e.target.value })}
+                            style={{ flex: 2 }}
+                            required
+                        />
+                    </div>
                     <button
                         type="submit"
                         style={{
@@ -267,13 +498,25 @@ export default function Dashboard() {
             <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button onClick={selectAllVisible} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Selecionar Visíveis</button>
                 <button onClick={deselectAll} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Desmarcar Todos</button>
-                <input
-                    type="text"
-                    placeholder="Categoria em massa"
-                    value={bulkCategory}
-                    onChange={(e) => setBulkCategory(e.target.value)}
-                    style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
-                />
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <select
+                        value={bulkCategory}
+                        onChange={e => setBulkCategory(e.target.value)}
+                        style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc", flex: 1 }}
+                    >
+                        <option value="">Categoria em massa</option>
+                        {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                    <input
+                        type="text"
+                        placeholder="Ou digite uma categoria"
+                        value={bulkCategory}
+                        onChange={e => setBulkCategory(e.target.value)}
+                        style={{ flex: 2 }}
+                    />
+                </div>
                 <button onClick={handleBulkCategoryChange} style={{ backgroundColor: "#7c2ea0", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>
                     Atualizar Categoria
                 </button>
@@ -327,7 +570,9 @@ export default function Dashboard() {
                                 onClick={() => handleEditClick(t)}>
                                 {t.description}
                             </td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.amount}</td>
+                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>
+                                {formatCurrency(t.amount)}
+                            </td>
                             <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.category}</td>
                             <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.comment}</td>
                             <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.account}</td>
