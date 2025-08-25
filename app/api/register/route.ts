@@ -17,15 +17,20 @@ export async function POST(req: NextRequest) {
         if (!user || !password) {
             return NextResponse.json({ error: "Usuário e senha obrigatórios" }, { status: 400 });
         }
+        // Verifica se já existe
         const [rows] = await pool.query(
-            "SELECT id FROM users WHERE email = ? AND password = ?",
-            [user, password]
+            "SELECT id FROM users WHERE email = ?",
+            [user]
         );
         if (Array.isArray(rows) && rows.length > 0) {
-            return NextResponse.json({ userId: rows[0].id });
-        } else {
-            return NextResponse.json({ error: "Usuário ou senha inválidos" }, { status: 400 });
+            return NextResponse.json({ error: "Usuário já existe" }, { status: 400 });
         }
+        // Cria novo usuário
+        await pool.query(
+            "INSERT INTO users (email, password) VALUES (?, ?)",
+            [user, password]
+        );
+        return NextResponse.json({ success: true });
     } catch (err) {
         console.error(err);
         return NextResponse.json({ error: "Erro interno" }, { status: 500 });

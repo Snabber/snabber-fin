@@ -1,5 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Pie } from "react-chartjs-2";
+import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
+Chart.register(ArcElement, Tooltip, Legend);
 
 function formatDate(dateStr: string) {
     const date = new Date(dateStr);
@@ -280,9 +283,21 @@ export default function Dashboard() {
                 body: JSON.stringify({ transactionIds: selectedTransactions }),
             });
             if (!res.ok) throw new Error("Erro ao remover transações");
-            setTransactions((prev) =>
-                prev.filter((t) => !selectedTransactions.includes(t.transaction_id))
-            );
+            setTransactions((prev) => {
+                // Remove as transações selecionadas
+                const updated = prev.filter((t) => !selectedTransactions.includes(t.transaction_id));
+                // Se houver transações restantes e alguma categoria foi removida,
+                // atualiza a categoria das removidas para a próxima da lista
+                if (updated.length > 0 && selectedTransactions.length > 0) {
+                    const nextCategory = updated[0].category;
+                    return updated.map(t =>
+                        selectedTransactions.includes(t.transaction_id)
+                            ? { ...t, category: nextCategory }
+                            : t
+                    );
+                }
+                return updated;
+            });
             setSelectedTransactions([]);
         } catch (err) {
             console.error(err);
@@ -299,8 +314,55 @@ export default function Dashboard() {
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const totalEntradas = displayedTransactions
-        .filter(t => t.amount > 0)
+        .filter(t => t.amount > 0 && t.category !== "Ignorado")
         .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Dados para o gráfico de pizza (Pie Chart)
+    const pieData = useMemo(() => {
+        // Agrupa valores negativos por categoria
+        const gastosPorCategoria: { [cat: string]: number } = {};
+        displayedTransactions.forEach(t => {
+            if (t.amount < 0 && t.category !== "Ignorado") {
+                gastosPorCategoria[t.category] = (gastosPorCategoria[t.category] || 0) + Math.abs(Number(t.amount));
+            }
+        });
+
+        // Ordena categorias por valor decrescente
+        const categoriasOrdenadas = Object.entries(gastosPorCategoria)
+            .sort((a, b) => b[1] - a[1]);
+
+        let categorias: string[] = [];
+        let valores: number[] = [];
+
+        if (categoriasOrdenadas.length > 8) {
+            // Mostra as 8 maiores, o resto agrupa em "Outros"
+            const maiores = categoriasOrdenadas.slice(0, 8);
+            const outros = categoriasOrdenadas.slice(8);
+            categorias = maiores.map(([cat]) => cat);
+            valores = maiores.map(([, val]) => val);
+
+            const outrosValor = outros.reduce((sum, [, val]) => sum + val, 0);
+            if (outrosValor > 0) {
+                categorias.push("Outros");
+                valores.push(outrosValor);
+            }
+        } else {
+            categorias = categoriasOrdenadas.map(([cat]) => cat);
+            valores = categoriasOrdenadas.map(([, val]) => val);
+        }
+
+        return {
+            labels: categorias,
+            datasets: [
+                {
+                    data: valores,
+                    backgroundColor: [
+                        "#7c2ea0", "#f98c39", "#388e3c", "#d32f2f", "#1976d2", "#fbc02d", "#8d6e63", "#0288d1", "#cccccc"
+                    ],
+                },
+            ],
+        };
+    }, [displayedTransactions]);
 
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
@@ -345,6 +407,11 @@ export default function Dashboard() {
                 <div style={{ fontWeight: "bold", color: "#388e3c" }}>
                     Entradas:&nbsp;{formatCurrency(totalEntradas)}
                 </div>
+            </div>
+
+            <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
+                <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Gastos por Categoria</h3>
+                <Pie data={pieData} />
             </div>
 
             <input
@@ -400,8 +467,8 @@ export default function Dashboard() {
                                 placeholder="Valor"
                                 value={form.amount}
                                 onChange={e => {
-                                    let val = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
-                                    val = val.split(".").length > 2 ? val.replace(/\.+$/, "") : val;
+                                    let val = e.target.value.replace(",", ".").replace(/[^0-9.-]/g, "");
+                                    // Permite valor negativo ou positivo, não força "-"
                                     setForm({ ...form, amount: val });
                                 }}
                                 required
@@ -433,9 +500,11 @@ export default function Dashboard() {
                             value={form.category}
                             onChange={e => setForm({ ...form, category: e.target.value })}
                             style={{ flex: 1 }}
-                            required
                         >
                             <option value="">Selecione</option>
+                            {categories.length === 0 && (
+                                <option disabled value="">Nenhuma categoria cadastrada</option>
+                            )}
                             {categories.map(cat => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
@@ -461,7 +530,7 @@ export default function Dashboard() {
                                 whiteSpace: "nowrap",
                                 overflow: "hidden"
                             }}
-                            required
+                            
                         >
                             <option value="">Selecione</option>
                             {accounts.map(acc => (
