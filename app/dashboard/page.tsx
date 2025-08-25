@@ -24,6 +24,7 @@ export default function Dashboard() {
   });
   const [showForm, setShowForm] = useState(false);
   const [bulkCategory, setBulkCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
 
   const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "1";
 
@@ -31,7 +32,13 @@ export default function Dashboard() {
     if (!userId) return;
     fetch(`/api/transactions?userId=${userId}`)
       .then((res) => res.json())
-      .then((data) => setTransactions(data))
+      .then((data: Transaction[]) => {
+        setTransactions(data);
+
+        // extrai categorias distintas
+        const distinct = Array.from(new Set(data.map((t) => t.category).filter(Boolean)));
+        setCategories(distinct);
+      })
       .catch((err) => console.error(err));
   }, [userId]);
 
@@ -46,6 +53,12 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const newTransaction = await res.json();
       setTransactions((prev) => [newTransaction, ...prev]);
+
+      // adiciona categoria nova se não existir
+      if (newTransaction.category && !categories.includes(newTransaction.category)) {
+        setCategories((prev) => [...prev, newTransaction.category]);
+      }
+
       setForm({ date: "", description: "", amount: "", category: "", comment: "", account: "" });
       setShowForm(false);
     } catch (err) {
@@ -79,6 +92,9 @@ export default function Dashboard() {
             : t
         )
       );
+
+      if (!categories.includes(bulkCategory)) setCategories((prev) => [...prev, bulkCategory]);
+
       setSelectedTransactions([]);
       setBulkCategory("");
     } catch (err) {
@@ -139,11 +155,37 @@ export default function Dashboard() {
           }}
         >
           <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-          <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
-          <input type="number" placeholder="Valor" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
-          <input type="text" placeholder="Categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <input
+            type="text"
+            placeholder="Descrição"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            required
+          />
+          <input
+            type="number"
+            placeholder="Valor"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            required
+          />
+
+          {/* Categoria como select + input livre */}
+          <input
+            list="categories"
+            placeholder="Categoria"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+          <datalist id="categories">
+            {categories.map((cat) => (
+              <option key={cat} value={cat} />
+            ))}
+          </datalist>
+
           <input type="text" placeholder="Comentário" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
           <input type="text" placeholder="Conta" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
+
           <button
             type="submit"
             style={{
@@ -163,15 +205,33 @@ export default function Dashboard() {
       <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <button onClick={selectAll} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Selecionar Todos</button>
         <button onClick={deselectAll} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Desmarcar Todos</button>
+
+        {/* Bulk category input como select + livre */}
         <input
-          type="text"
+          list="categories-bulk"
           placeholder="Categoria em massa"
           value={bulkCategory}
           onChange={(e) => setBulkCategory(e.target.value)}
           style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
         />
-        <button onClick={handleBulkCategoryChange} style={{ backgroundColor: "#7c2ea0", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>Atualizar Categoria</button>
-        <button onClick={handleDeleteTransactions} style={{ backgroundColor: "#f98c39", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>Remover Selecionadas</button>
+        <datalist id="categories-bulk">
+          {categories.map((cat) => (
+            <option key={cat} value={cat} />
+          ))}
+        </datalist>
+
+        <button
+          onClick={handleBulkCategoryChange}
+          style={{ backgroundColor: "#7c2ea0", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}
+        >
+          Atualizar Categoria
+        </button>
+        <button
+          onClick={handleDeleteTransactions}
+          style={{ backgroundColor: "#f98c39", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}
+        >
+          Remover Selecionadas
+        </button>
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "white", borderRadius: "6px", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
@@ -190,7 +250,11 @@ export default function Dashboard() {
           {transactions.map((t) => (
             <tr key={t.transaction_id} style={{ textAlign: "center" }}>
               <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>
-                <input type="checkbox" checked={selectedTransactions.includes(t.transaction_id)} onChange={() => toggleSelect(t.transaction_id)} />
+                <input
+                  type="checkbox"
+                  checked={selectedTransactions.includes(t.transaction_id)}
+                  onChange={() => toggleSelect(t.transaction_id)}
+                />
               </td>
               <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.date}</td>
               <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.description}</td>
