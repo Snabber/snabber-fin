@@ -276,6 +276,7 @@ export default function Dashboard() {
 
     const selectAllVisible = () =>
         setSelectedTransactions(filteredTransactions.map((t) => t.transaction_id));
+    
     const deselectAll = () => setSelectedTransactions([]);
 
     const handleBulkCategoryChange = async () => {

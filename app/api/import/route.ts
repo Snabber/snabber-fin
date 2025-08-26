@@ -66,12 +66,55 @@ function excelToDate(value: any): Date | "Skip" {
     return "Skip";
 }
 // Função mock para adivinhar categoria
-function guessCategory(comment: string, description: string) {
-    // Coloque aqui sua lógica real
+async function guessCategory(comment: string, description: string, userId: number): Promise<string> {
+  if (!comment) comment = "QualquerCoisa";
+
+  const conn = await pool.getConnection();
+
+  try {
+    const sql = `
+      SELECT DISTINCT category, MAX(date) as md, COUNT(category) as ct, 1 as Priority
+      FROM money_transactions
+      WHERE user_id = ? AND category <> '' AND (comment LIKE ? OR description LIKE ?)
+      GROUP BY category
+      UNION
+      SELECT DISTINCT category, MAX(date) as md, COUNT(category) as ct, 2 as Priority
+      FROM money_transactions
+      WHERE user_id = ? AND category <> '' AND (comment LIKE ? OR description LIKE ?)
+      GROUP BY category
+      UNION
+      SELECT DISTINCT category, MAX(date) as md, COUNT(category) as ct, 3 as Priority
+      FROM money_transactions
+      WHERE user_id = ? AND category <> '' AND (comment LIKE ? OR description LIKE ?)
+      GROUP BY category
+      ORDER BY Priority, ct DESC, md DESC;
+    `;
+
+    const params = [
+      userId,
+      comment.substring(0, 9) + "%",
+      description.substring(0, 9) + "%",
+      userId,
+      comment.substring(0, 6) + "%",
+      description.substring(0, 6) + "%",
+      userId,
+      comment.substring(0, 3) + "%",
+      description.substring(0, 3) + "%",
+    ];
+
+    const [rows] = await conn.query(sql, params);
+    const categories = (rows as any[]).map(r => r.category);
+
+    return categories.length > 0 ? categories[0] : "To be Defined";
+  } catch (err) {
+    console.error(err);
     return "To be Defined";
+  } finally {
+    conn.release();
+  }
 }
 
-function parseBankTransactions(
+async function parseBankTransactions(
     jsonData: any[][],
     colDate: number,
     colDesc: number,
@@ -123,7 +166,7 @@ function parseBankTransactions(
         
 
         const description = `${descriptionRaw} ${comment}`;
-        const category = guessCategory(comment, description);
+        const category = await guessCategory(comment, description, userId);
 
         transactions.push({
             date: dateNew,
