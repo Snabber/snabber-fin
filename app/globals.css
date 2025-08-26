@@ -13,3 +13,44 @@ button {
 input {
   font-size: 14px;
 }
+
+
+.tabs-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+}
+
+.tabs-header {
+  display: flex;
+  border-bottom: 2px solid #ccc;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  cursor: pointer;
+  background: #f4f4f4;
+  border: none;
+  outline: none;
+  text-align: center;
+  transition: background 0.2s;
+}
+
+.tab:hover {
+  background: #e0e0e0;
+}
+
+.tab.active {
+  background: #fff;
+  border-bottom: 2px solid #007bff;
+  font-weight: bold;
+}
+
+.tabs-content {
+  padding: 15px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+}

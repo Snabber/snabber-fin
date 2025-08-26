@@ -1,12 +1,12 @@
 "use client";
 
 
+import { Chart, ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip } from "chart.js";
+import { Pie, Bar } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect, useMemo } from "react";
-import { Pie } from "react-chartjs-2";
-import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
-Chart.register(ArcElement, Tooltip, Legend);
+Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 function formatDate(dateStr: string) {
     const date = new Date(dateStr);
@@ -283,7 +283,7 @@ export default function Dashboard() {
         setEditingId(transaction.transaction_id);
         setShowForm(true);
 
-         window.scrollTo({ top: 850, behavior: "smooth" });
+        window.scrollTo({ top: 850, behavior: "smooth" });
     };
 
     const toggleSelect = (id: number) => {
@@ -384,6 +384,39 @@ export default function Dashboard() {
     const totalEntradas = displayedTransactions
         .filter(t => t.amount > 0 && t.category !== "Ignorado")
         .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Dentro do seu componente:
+    const barData = useMemo(() => {
+        const monthlyData: { [month: number]: { entradas: number; saidas: number } } = {};
+        for (let i = 0; i < 12; i++) {
+            monthlyData[i] = { entradas: 0, saidas: 0 };
+        }
+
+        displayedTransactions.forEach(t => {
+            const date = new Date(t.date);
+            if (!isNaN(date.getTime()) && t.category !== "Ignorado") {
+                const month = date.getMonth();
+                if (t.amount > 0) monthlyData[month].entradas += t.amount;
+                if (t.amount < 0) monthlyData[month].saidas += Math.abs(t.amount);
+            }
+        });
+
+        return {
+            labels: monthsList,
+            datasets: [
+                {
+                    label: "Entradas",
+                    data: monthsList.map((_, i) => monthlyData[i].entradas),
+                    backgroundColor: "#388e3c"
+                },
+                {
+                    label: "Saídas",
+                    data: monthsList.map((_, i) => monthlyData[i].saidas),
+                    backgroundColor: "#d32f2f"
+                }
+            ]
+        };
+    }, [displayedTransactions]);
 
     // Dados para o gráfico de pizza (Pie Chart)
     const pieData = useMemo(() => {
@@ -487,6 +520,16 @@ export default function Dashboard() {
         saveAs(blob, `transacoes_usuario_${userId}.xlsx`);
     };
 
+    const [activeTab, setActiveTab] = useState<"pie" | "transactions" | "upload">("pie");
+
+    const tabStyle = (tab: "pie" | "transactions" | "upload") => ({
+        padding: "10px 20px",
+        cursor: "pointer",
+        borderBottom: activeTab === tab ? "2px solid #007bff" : "2px solid transparent",
+        color: activeTab === tab ? "#007bff" : "#555",
+        fontWeight: activeTab === tab ? 600 : 400,
+        transition: "all 0.3s ease",
+    });
 
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
@@ -510,48 +553,8 @@ export default function Dashboard() {
             </button>
 
 
-            {/* ÁREA DE UPLOAD */}
-            <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                style={{
-                    border: "2px dashed #7c2ea0",
-                    borderRadius: "8px",
-                    padding: "2rem",
-                    textAlign: "center",
-                    marginBottom: "1.5rem",
-                    backgroundColor: "#fff",
-                }}
-            >
-                <p>Arraste arquivos .txt ou .csv aqui</p>
-                <p style={{ fontSize: "0.9rem", color: "#666" }}>
-                    (Você pode soltar múltiplos arquivos)
-                </p>
 
-                {files.length > 0 && (
-                    <div style={{ marginTop: "1rem", textAlign: "left" }}>
-                        <strong>Arquivos carregados:</strong>
-                        <ul>
-                            {files.map((f, i) => (
-                                <li key={i}>{f.name}</li>
-                            ))}
-                        </ul>
-                        <button
-                            onClick={handleProcessFiles}
-                            style={{
-                                marginTop: "0.5rem",
-                                backgroundColor: "#7c2ea0",
-                                color: "white",
-                                padding: "0.5rem 1rem",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                            }}
-                        >
-                            Processar Arquivos
-                        </button>
-                    </div>
-                )}
-            </div>
+
 
             {/* ... resto do seu dashboard permanece igual ... */}
 
@@ -598,10 +601,83 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
-                <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Gastos por Categoria</h3>
-                <Pie data={pieData} />
+            <div>
+
+                <div style={{ display: "flex", marginBottom: "1rem" }}>
+                    <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>Gráfico PIE</div>
+                    <div style={tabStyle("transactions")} onClick={() => setActiveTab("transactions")}>Gráfico Barra</div>
+                    <div style={tabStyle("upload")} onClick={() => setActiveTab("upload")}>Upload CSV</div>
+                </div>
+
+                <div>
+                    {activeTab === "pie" && (
+                        <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
+                            <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Gastos por Categoria</h3>
+                            <Pie data={pieData} />
+                        </div>
+                    )}
+
+                    {activeTab === "transactions" && <div>Conteúdo das Transações
+
+                        {activeTab === "transactions" && (
+                            <div style={{ maxWidth: "800px", margin: "2rem auto" }}>
+                                <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Entradas e Saídas por Mês</h3>
+                                <Bar data={barData} />
+                            </div>
+                        )}
+                    </div>}
+
+                    {activeTab === "upload" && <div>
+
+                        {/* ÁREA DE UPLOAD */}
+                        <div
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            style={{
+                                border: "2px dashed #7c2ea0",
+                                borderRadius: "8px",
+                                padding: "2rem",
+                                textAlign: "center",
+                                marginBottom: "1.5rem",
+                                backgroundColor: "#fff",
+                            }}
+                        >
+                            <p>Arraste arquivos .txt ou .csv aqui</p>
+                            <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                                (Você pode soltar múltiplos arquivos)
+                            </p>
+
+                            {files.length > 0 && (
+                                <div style={{ marginTop: "1rem", textAlign: "left" }}>
+                                    <strong>Arquivos carregados:</strong>
+                                    <ul>
+                                        {files.map((f, i) => (
+                                            <li key={i}>{f.name}</li>
+                                        ))}
+                                    </ul>
+                                    <button
+                                        onClick={handleProcessFiles}
+                                        style={{
+                                            marginTop: "0.5rem",
+                                            backgroundColor: "#7c2ea0",
+                                            color: "white",
+                                            padding: "0.5rem 1rem",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Processar Arquivos
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+
+                    </div>}
+                </div>
             </div>
+
+
 
             <input
                 type="text"
