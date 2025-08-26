@@ -181,6 +181,8 @@ async function parseBankTransactions(
     console.log(`Importando ${source} - Linhas: ${jsonData.length} - Usuário: ${userId}`);
     console.log(`Parâmetros: colDate=${colDate}, colDesc=${colDesc}, colValSpent=${colValSpent}, colValEarned=${colValEarned}, colComment=${colComment}, removeDots=${removeDots}, startRow=${startRow}, changeSignal=${changeSignal}, colCategory=${colCategory}`);
     
+    const debugLevel = 2;
+    
     // Define a linha inicial, você pode parametrizar se quiser
 
     for (let row = startRow; row < jsonData.length; row++) {
@@ -190,10 +192,11 @@ async function parseBankTransactions(
         const dateRaw = rowData[colDate];
         var descriptionRaw = rowData[colDesc];
         // no bradesco pix e visa electron tem entrada de duas linhas
-        if(descriptionRaw == "Transfe Pix" || descriptionRaw == "Visa Electron"  ){
-            descriptionRaw = rowDataNext[colDesc];        
+        if(descriptionRaw == "Transfe Pix" || descriptionRaw == "Visa Electron" || descriptionRaw == "Pix Qrcode Est" || descriptionRaw == "Transferencia Pix"){
+            descriptionRaw = rowDataNext[colDesc];   
+             if (debugLevel > 0) console.log(`ProximaLinha "${descriptionRaw}"  <<<<<<<<<<`);     
         }
-
+        
         let amountRaw = rowData[colValSpent];
         const comment = rowData[colComment] || "";
         let valSource = source;
@@ -209,21 +212,21 @@ async function parseBankTransactions(
             continue;
         }
 
-        console.log(`DateRaw "${dateRaw}" XLS`);
+        if (debugLevel > 0) console.log(`DateRaw "${dateRaw}" XLS`);
         const dateXl = excelToDate(dateRaw);
 
-        console.log(`0.1_Date "${dateXl}" XLS`);
+        if (debugLevel > 0) console.log(`0.1_Date "${dateXl}" XLS`);
 
-        console.log(`2_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+        if (debugLevel > 0) console.log(`2_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
 
         if (dateXl === "Skip") continue;
         const dateNew = dateXl.toISOString().slice(0, 10); // YYYY-MM-DD
-        console.log(`3_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+        if (debugLevel > 0) console.log(`3_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
 
         if (amountRaw != null && amountRaw != " " && amountRaw != "") { //vem do colValSpent
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
 
-            console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 0) console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
                 if (changeSignal) {
                     amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
@@ -234,16 +237,16 @@ async function parseBankTransactions(
 
         } else { //vem do colValEarned
             amountRaw = rowData[colValEarned];
-            console.log(`6_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 0) console.log(`6_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
-            console.log(`7_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 0) console.log(`7_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
         }
 
-        console.log(`ElseIf ${amountRaw} RAW`);
-        console.log(`8_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+        if (debugLevel > 1) console.log(`ElseIf ${amountRaw} RAW`);
+        if (debugLevel > 0) console.log(`8_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
         let amount = String(amountRaw).replace(",", ".");
 
-        console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+        if (debugLevel > 0) console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
 
         const description = `${descriptionRaw} ${comment}`;
 

@@ -402,10 +402,10 @@ export default function Dashboard() {
         let categorias: string[] = [];
         let valores: number[] = [];
 
-        if (categoriasOrdenadas.length > 8) {
+        if (categoriasOrdenadas.length > 20) {
             // Mostra as 8 maiores, o resto agrupa em "Outros"
-            const maiores = categoriasOrdenadas.slice(0, 8);
-            const outros = categoriasOrdenadas.slice(8);
+            const maiores = categoriasOrdenadas.slice(0, 20);
+            const outros = categoriasOrdenadas.slice(20);
             categorias = maiores.map(([cat]) => cat);
             valores = maiores.map(([, val]) => val);
 
