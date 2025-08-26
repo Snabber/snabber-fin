@@ -77,23 +77,16 @@ export default function Dashboard() {
         window.location.href = "/";
     };
 
-    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
-
-        const allowedExtensions = [".txt", ".csv", ".xls", ".xlsx", ".xlsm"];
-
-        const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
-            const ext = f.name.toLowerCase().slice(f.name.lastIndexOf("."));
-            return allowedExtensions.includes(ext);
-        });
-
+        const droppedFiles = Array.from(e.dataTransfer.files).filter(
+            (f) =>
+                f.type === "text/plain" ||
+                f.name.endsWith(".csv") ||
+                f.name.endsWith(".xls") ||
+                f.name.endsWith(".xlsm")
+        );
         setFiles((prev) => [...prev, ...droppedFiles]);
-
-        // lê conteúdo de cada arquivo como texto
-        for (const file of droppedFiles) {
-            const text = await file.text();
-            setFileContents((prev) => [...prev, text]);
-        }
     };
 
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -399,11 +392,28 @@ export default function Dashboard() {
     }, [displayedTransactions]);
 
     // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
-    const handleProcessFiles = () => {
-        // você pode salvar no localStorage e ler na rota /upload
-        localStorage.setItem("uploadedContents", JSON.stringify(fileContents));
-        window.location.href = "/upload";
+
+
+    const handleProcessFiles = async () => {
+        const formData = new FormData();
+        files.forEach((f) => formData.append("files", f));
+        formData.append("userId", localStorage.getItem("userId")!);
+
+        const res = await fetch("/api/import", {
+            method: "POST",
+            body: formData, // ⚠️ Não passe JSON, use FormData!
+        });
+
+        const data = await res.json();
+        console.log(data);
     };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setFiles(Array.from(e.target.files));
+        }
+    };
+
 
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
