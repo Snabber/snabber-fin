@@ -189,20 +189,31 @@ export default function Dashboard() {
 
     // Filtra transações baseado no input de texto
     useEffect(() => {
-        const filtered = transactions.filter(
-            (t) =>
-                t.description.toLowerCase().includes(filterText.toLowerCase()) ||
-                t.category.toLowerCase().includes(filterText.toLowerCase()) ||
-                t.comment.toLowerCase().includes(filterText.toLowerCase()) ||
-                t.account.toLowerCase().includes(filterText.toLowerCase())
-        );
-        setFilteredTransactions(filtered);
+    const filtered = transactions.filter((t) => {
+        // filtro global
+        const matchesGlobal = filterText
+            ? t.description.toLowerCase().includes(filterText.toLowerCase()) ||
+              t.category.toLowerCase().includes(filterText.toLowerCase()) ||
+              t.comment.toLowerCase().includes(filterText.toLowerCase()) ||
+              t.account.toLowerCase().includes(filterText.toLowerCase())
+            : true;
 
-        // Marca somente as linhas visíveis
-        setSelectedTransactions((prevSelected) =>
-            prevSelected.filter((id) => filtered.some((t) => t.transaction_id === id))
-        );
-    }, [filterText, transactions]);
+        // filtro por coluna
+        const matchesColumn = Object.entries(columnFilters).every(([col, val]) => {
+            if (!val) return true;
+            return String(t[col as keyof Transaction]).toLowerCase().includes(val.toLowerCase());
+        });
+
+        return matchesGlobal && matchesColumn;
+    });
+
+    setFilteredTransactions(filtered);
+
+    // mantém apenas os selecionados que ainda estão visíveis
+    setSelectedTransactions((prevSelected) =>
+        prevSelected.filter((id) => filtered.some((t) => t.transaction_id === id))
+    );
+}, [filterText, columnFilters, transactions]);
 
     const handleAddOrEditTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -279,8 +290,13 @@ export default function Dashboard() {
         );
     };
 
-    const selectAllVisible = () =>
-        setSelectedTransactions(filteredTransactions.map((t) => t.transaction_id));
+    const selectAllVisible = () => {
+    setSelectedTransactions(prev => {
+        const visibleIds = filteredTransactions.map(t => t.transaction_id);
+        const newSelection = [...new Set([...prev, ...visibleIds])];
+        return newSelection;
+    });
+};
 
     const deselectAll = () => setSelectedTransactions([]);
 
