@@ -51,14 +51,32 @@ function excelToDate(value: any): Date | "Skip" {
             return new Date(year, month, day);
         }
 
+        // Se for formato "d/MM/yyyy"
+        const dmy3Match = /^(\d{1})\/(\d{2})\/(\d{4})$/.exec(value);
+        if (dmy3Match) {
+            const day = parseInt(dmy3Match[1], 10);
+            const month = parseInt(dmy3Match[2], 10) - 1;
+            const year = parseInt(dmy3Match[3], 10);
+            return new Date(year, month, day);
+        }
+
+        // Se for formato "dd/MM/yy"
         const dmy2Match = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(value);
         if (dmy2Match) {
             const day = parseInt(dmy2Match[1], 10);
             const month = parseInt(dmy2Match[2], 10) - 1;
-            const year = parseInt(dmy2Match[3], 10)+2000;
+            const year = parseInt(dmy2Match[3], 10) + 2000;
             return new Date(year, month, day);
         }
 
+        // Se for formato yyyy-MM-dd
+        const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        if (ymdMatch) {
+            const year = parseInt(ymdMatch[1], 10);
+            const month = parseInt(ymdMatch[2], 10) - 1;
+            const day = parseInt(ymdMatch[3], 10);
+            return new Date(year, month, day);
+        }
         // Outros casos não reconhecidos
         return "Skip";
     }
@@ -67,12 +85,12 @@ function excelToDate(value: any): Date | "Skip" {
 }
 // Função mock para adivinhar categoria
 async function guessCategory(comment: string, description: string, userId: number): Promise<string> {
-  if (!comment) comment = "QualquerCoisa";
+    if (!comment) comment = "QualquerCoisa";
 
-  const conn = await pool.getConnection();
+    const conn = await pool.getConnection();
 
-  try {
-    const sql = `
+    try {
+        const sql = `
       SELECT DISTINCT category, MAX(date) as md, COUNT(category) as ct, 1 as Priority
       FROM money_transactions
       WHERE user_id = ? AND category <> '' AND (comment LIKE ? OR description LIKE ?)
@@ -90,28 +108,28 @@ async function guessCategory(comment: string, description: string, userId: numbe
       ORDER BY Priority, ct DESC, md DESC;
     `;
 
-    const params = [
-      userId,
-      comment.substring(0, 9) + "%",
-      description.substring(0, 9) + "%",
-      userId,
-      comment.substring(0, 6) + "%",
-      description.substring(0, 6) + "%",
-      userId,
-      comment.substring(0, 3) + "%",
-      description.substring(0, 3) + "%",
-    ];
+        const params = [
+            userId,
+            comment.substring(0, 9) + "%",
+            description.substring(0, 9) + "%",
+            userId,
+            comment.substring(0, 6) + "%",
+            description.substring(0, 6) + "%",
+            userId,
+            comment.substring(0, 3) + "%",
+            description.substring(0, 3) + "%",
+        ];
 
-    const [rows] = await conn.query(sql, params);
-    const categories = (rows as any[]).map(r => r.category);
+        const [rows] = await conn.query(sql, params);
+        const categories = (rows as any[]).map(r => r.category);
 
-    return categories.length > 0 ? categories[0] : "To be Defined";
-  } catch (err) {
-    console.error(err);
-    return "To be Defined";
-  } finally {
-    conn.release();
-  }
+        return categories.length > 0 ? categories[0] : "To be Defined";
+    } catch (err) {
+        console.error(err);
+        return "To be Defined";
+    } finally {
+        conn.release();
+    }
 }
 
 async function parseBankTransactions(
@@ -124,12 +142,14 @@ async function parseBankTransactions(
     source: string,
     userId: number,
     removeDots: boolean,
-    transactions: any[]
+    transactions: any[],
+    startRow: number = 10
 ) {
     console.log(`Importando ${source} XLS`);
 
+
     // Define a linha inicial, você pode parametrizar se quiser
-    let startRow = 10;
+    
     for (let row = startRow; row < jsonData.length; row++) {
         const rowData = jsonData[row];
 
@@ -137,49 +157,70 @@ async function parseBankTransactions(
         const descriptionRaw = rowData[colDesc];
         let amountRaw = rowData[colValSpent];
         const comment = rowData[colComment] || "";
-
-        console.log(`ColValSpent "${ rowData[colValSpent]}" XLS`);
-        console.log(`ColValEarned "${ rowData[colValEarned]}" XLS`);
+        let valSource = source;
+        if (valSource.length < 2) {
+           valSource = rowData[Number(source)];
+        }
+        //console.log(`ColValSpent "${rowData[colValSpent]}" XLS`);
+        //console.log(`ColValEarned "${rowData[colValEarned]}" XLS`);
+        console.log(`0_ ${dateRaw} | ${descriptionRaw} | ${amountRaw} | ${comment} | ${source} | ${valSource}`);
 
         if (!descriptionRaw || descriptionRaw === "SALDO ANTERIOR" || descriptionRaw === "Total do Dia") {
             continue;
         }
 
+        console.log(`DateRaw "${dateRaw}" XLS`);
         const dateXl = excelToDate(dateRaw);
+
+        console.log(`0.1_Date "${dateXl}" XLS`);
+
+        console.log(`2_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+
         if (dateXl === "Skip") continue;
         const dateNew = dateXl.toISOString().slice(0, 10); // YYYY-MM-DD
+        console.log(`3_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
 
-        if (amountRaw != null &&  amountRaw != " " && amountRaw != ""){ //vem do colValSpent
+        if (amountRaw != null && amountRaw != " " && amountRaw != "") { //vem do colValSpent
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
-            console.log(`RAW ${amountRaw} RAW`);
             
+            console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
-                amountRaw =  Number(String(amountRaw).replace(",", ".")) * -1; 
-                console.log(`RAWFixed ${amountRaw} RAW`);
+                amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
+                console.log(`5_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             }
-            
 
-        } else{ //vem do colValEarned
+
+        } else { //vem do colValEarned
             amountRaw = rowData[colValEarned];
-            if(removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
-        } 
-        
-        //console.log(`ElseIf ${amountRaw} RAW`);
+            console.log(`6_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
+            console.log(`7_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+        }
+
+        console.log(`ElseIf ${amountRaw} RAW`);
+        console.log(`8_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
         let amount = String(amountRaw).replace(",", ".");
-        console.log(`------------`);
+
+        console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
         
         const description = `${descriptionRaw} ${comment}`;
         const category = await guessCategory(comment, description, userId);
+
+        console.log(`10_ ${dateNew} | ${description} | ${amount} | ${comment}  | ${valSource} | ${category}`);
 
         transactions.push({
             date: dateNew,
             description,
             amount: Number(amount),
             comment,
-            account: source,
+            account: valSource,
             userId,
             category,
         });
+
+        console.log(`11_ Transaction Count: ${transactions.length}`);
+
+        console.log(`-`);
     }
 }
 
@@ -189,13 +230,13 @@ export async function POST(req: NextRequest) {
         if (!contentType.includes("multipart/form-data")) {
             return new NextResponse("Expected multipart/form-data", { status: 400 });
         }
+        transactions.length = 0;
 
         const formData = await req.formData();
         const files = formData.getAll("files") as any[];
         const userId = Number(formData.get("userId") || 0);
 
         
-
         for (const file of files) {
             const name = file.name.toLowerCase();
             const arrayBuffer = await file.arrayBuffer();
@@ -210,25 +251,38 @@ export async function POST(req: NextRequest) {
 
                 // BRADESCO
                 if (jsonData[7][0] === "Data") {
-                    parseBankTransactions(jsonData, 0, 1, 4, 3, 2, "Bradesco", userId, true, transactions);
+                    await  parseBankTransactions(jsonData, 0, 1, 4, 3, 2, "Bradesco", userId, true, transactions);
                 }
                 // AMEX
-                else if (jsonData[1][2] === "Bradesco Internet Banking"){
-                    parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, false , transactions);
+                else if (jsonData[1][2] === "Bradesco Internet Banking") {
+                    await parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, false, transactions);
+                }
+                else{
+                    await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2);
                 }
 
+            }
+            else if (name.endsWith(".csv")) {
+                const text = await file.text();
+                const lines = text.split(/\r?\n/).filter((l: string) => l.trim() !== "");
+                const jsonData: any[][] = lines.map((line: string) => {
+                    // Separar por vírgula, mas considerando aspas
+                    const regex = /(".*?"|[^",]+)(?=\s*,|\s*$)/g;
+                    const matches = line.match(regex);
+                    return matches ? matches.map((m: string) => m.replace(/^"(.*)"$/, '$1').trim()) : [];
+                });
 
+                console.log("A_ JSON:", jsonData);
 
+                await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2);
 
-
-
-
+                console.log(`12_ Completei`);
             }
         }
 
         console.log("Transactions parsed:", transactions);
 
-        
+
         for (const tx of transactions) {
             try {
                 const [result] = await pool.query(
