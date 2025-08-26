@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "userId obrigatório" }, { status: 400 });
 
   const [rows] = await pool.query(
-    "SELECT DISTINCT category FROM money_transactions WHERE user_id = ? AND category IS NOT NULL AND category != ''",
+    "SELECT DISTINCT category FROM money_transactions WHERE user_id = ? AND category IS NOT NULL AND category != '' order by 1",
     [userId]
   );
   const categories = (rows as Array<{ category: string }>).map((r) => r.category);

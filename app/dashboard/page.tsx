@@ -189,31 +189,31 @@ export default function Dashboard() {
 
     // Filtra transações baseado no input de texto
     useEffect(() => {
-    const filtered = transactions.filter((t) => {
-        // filtro global
-        const matchesGlobal = filterText
-            ? t.description.toLowerCase().includes(filterText.toLowerCase()) ||
-              t.category.toLowerCase().includes(filterText.toLowerCase()) ||
-              t.comment.toLowerCase().includes(filterText.toLowerCase()) ||
-              t.account.toLowerCase().includes(filterText.toLowerCase())
-            : true;
+        const filtered = transactions.filter((t) => {
+            // filtro global
+            const matchesGlobal = filterText
+                ? t.description.toLowerCase().includes(filterText.toLowerCase()) ||
+                t.category.toLowerCase().includes(filterText.toLowerCase()) ||
+                t.comment.toLowerCase().includes(filterText.toLowerCase()) ||
+                t.account.toLowerCase().includes(filterText.toLowerCase())
+                : true;
 
-        // filtro por coluna
-        const matchesColumn = Object.entries(columnFilters).every(([col, val]) => {
-            if (!val) return true;
-            return String(t[col as keyof Transaction]).toLowerCase().includes(val.toLowerCase());
+            // filtro por coluna
+            const matchesColumn = Object.entries(columnFilters).every(([col, val]) => {
+                if (!val) return true;
+                return String(t[col as keyof Transaction]).toLowerCase().includes(val.toLowerCase());
+            });
+
+            return matchesGlobal && matchesColumn;
         });
 
-        return matchesGlobal && matchesColumn;
-    });
+        setFilteredTransactions(filtered);
 
-    setFilteredTransactions(filtered);
-
-    // mantém apenas os selecionados que ainda estão visíveis
-    setSelectedTransactions((prevSelected) =>
-        prevSelected.filter((id) => filtered.some((t) => t.transaction_id === id))
-    );
-}, [filterText, columnFilters, transactions]);
+        // mantém apenas os selecionados que ainda estão visíveis
+        setSelectedTransactions((prevSelected) =>
+            prevSelected.filter((id) => filtered.some((t) => t.transaction_id === id))
+        );
+    }, [filterText, columnFilters, transactions]);
 
     const handleAddOrEditTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -282,6 +282,8 @@ export default function Dashboard() {
         });
         setEditingId(transaction.transaction_id);
         setShowForm(true);
+
+         window.scrollTo({ top: 850, behavior: "smooth" });
     };
 
     const toggleSelect = (id: number) => {
@@ -291,12 +293,12 @@ export default function Dashboard() {
     };
 
     const selectAllVisible = () => {
-    setSelectedTransactions(prev => {
-        const visibleIds = filteredTransactions.map(t => t.transaction_id);
-        const newSelection = [...new Set([...prev, ...visibleIds])];
-        return newSelection;
-    });
-};
+        setSelectedTransactions(prev => {
+            const visibleIds = filteredTransactions.map(t => t.transaction_id);
+            const newSelection = [...new Set([...prev, ...visibleIds])];
+            return newSelection;
+        });
+    };
 
     const deselectAll = () => setSelectedTransactions([]);
 
@@ -450,10 +452,10 @@ export default function Dashboard() {
             const shouldClear = window.confirm("Arquivos processados com sucesso! Deseja limpar a lista?");
             if (shouldClear) {
                 setFiles([]);
-                  await loadTransactions(); // <-- recarrega a tabela
+                await loadTransactions(); // <-- recarrega a tabela
             }
         } else {
-              await loadTransactions(); // <-- recarrega a tabela
+            await loadTransactions(); // <-- recarrega a tabela
             alert("Erro ao processar arquivos. Tente novamente.");
         }
     };
@@ -692,9 +694,12 @@ export default function Dashboard() {
                             {categories.length === 0 && (
                                 <option disabled value="">Nenhuma categoria cadastrada</option>
                             )}
-                            {categories.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                            ))}
+                            {categories
+                                .slice() // cria uma cópia para não mutar o estado
+                                .sort((a, b) => a.localeCompare(b)) // ordena alfabeticamente
+                                .map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
                         </select>
                         <input
                             type="text"

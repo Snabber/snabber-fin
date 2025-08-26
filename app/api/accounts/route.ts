@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "userId obrigatório" }, { status: 400 });
 
   const [rows] = await pool.query(
-    "SELECT DISTINCT account FROM money_transactions WHERE user_id = ? AND account IS NOT NULL AND account != ''",
+    "SELECT DISTINCT account FROM money_transactions WHERE user_id = ? AND account IS NOT NULL AND account != '' order by 1",
     [userId]
   );
   const accounts = (rows as Array<{ account: string }>).map((r) => r.account);
