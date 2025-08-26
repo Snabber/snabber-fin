@@ -395,25 +395,28 @@ export default function Dashboard() {
     // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
 
 
-    const handleProcessFiles = async () => {
-        const formData = new FormData();
-        files.forEach((f) => formData.append("files", f));
-        formData.append("userId", localStorage.getItem("userId")!);
+const handleProcessFiles = async () => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    formData.append("userId", localStorage.getItem("userId")!);
 
-        const res = await fetch("/api/import", {
-            method: "POST",
-            body: formData, // ⚠️ Não passe JSON, use FormData!
-        });
+    const res = await fetch("/api/import", {
+        method: "POST",
+        body: formData, // ⚠️ Não passe JSON, use FormData!
+    });
 
-        const data = await res.json();
-        console.log(data);
-    };
+    const data = await res.json();
+    console.log(data);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFiles(Array.from(e.target.files));
+    if (res.ok) {
+        const shouldClear = window.confirm("Arquivos processados com sucesso! Deseja limpar a lista?");
+        if (shouldClear) {
+            setFiles([]);
         }
-    };
+    } else {
+        alert("Erro ao processar arquivos. Tente novamente.");
+    }
+};
 
 
     return (
@@ -434,7 +437,7 @@ export default function Dashboard() {
                     cursor: "pointer",
                 }}
             >
-                Logout
+                Logout ({userId})
             </button>
 
 

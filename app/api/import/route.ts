@@ -123,6 +123,7 @@ async function parseBankTransactions(
     colComment: number,
     source: string,
     userId: number,
+    removeDots: boolean,
     transactions: any[]
 ) {
     console.log(`Importando ${source} XLS`);
@@ -146,10 +147,10 @@ async function parseBankTransactions(
 
         const dateXl = excelToDate(dateRaw);
         if (dateXl === "Skip") continue;
-
         const dateNew = dateXl.toISOString().slice(0, 10); // YYYY-MM-DD
 
-        if (amountRaw != null &&  amountRaw != " " && amountRaw != ""){
+        if (amountRaw != null &&  amountRaw != " " && amountRaw != ""){ //vem do colValSpent
+            if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
             console.log(`RAW ${amountRaw} RAW`);
             
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
@@ -158,13 +159,15 @@ async function parseBankTransactions(
             }
             
 
-        } else amountRaw = rowData[colValEarned];
-
+        } else{ //vem do colValEarned
+            amountRaw = rowData[colValEarned];
+            if(removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
+        } 
+        
         //console.log(`ElseIf ${amountRaw} RAW`);
         let amount = String(amountRaw).replace(",", ".");
         console.log(`------------`);
         
-
         const description = `${descriptionRaw} ${comment}`;
         const category = await guessCategory(comment, description, userId);
 
@@ -205,14 +208,13 @@ export async function POST(req: NextRequest) {
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[][];
                 console.log("XLS VA2" + jsonData[7][0]);
 
-                // Detecta se é Amex pela célula 0,10
+                // BRADESCO
                 if (jsonData[7][0] === "Data") {
-
-                    parseBankTransactions(jsonData, 0, 1, 4, 3, 2, "Bradesco", userId, transactions);
+                    parseBankTransactions(jsonData, 0, 1, 4, 3, 2, "Bradesco", userId, true, transactions);
                 }
+                // AMEX
                 else if (jsonData[1][2] === "Bradesco Internet Banking"){
-                    parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, transactions);
-
+                    parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, false , transactions);
                 }
 
 

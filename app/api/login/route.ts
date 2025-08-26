@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
             [user, password]
         );
         if (Array.isArray(rows) && rows.length > 0) {
-            return NextResponse.json({ userId: rows[0].id });
+            return NextResponse.json({ userId: (rows as any)[0].id });
         } else {
             return NextResponse.json({ error: "Usuário ou senha inválidos" }, { status: 400 });
         }
