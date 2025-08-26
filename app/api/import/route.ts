@@ -77,6 +77,37 @@ function excelToDate(value: any): Date | "Skip" {
             const day = parseInt(ymdMatch[3], 10);
             return new Date(year, month, day);
         }
+
+        // Se for formato "dd-mmm-yy" (ex: 12-ago-25)
+        const dmmmyMatch = /^(\d{2})-([a-z]{3})-(\d{2})$/i.exec(value);
+        if (dmmmyMatch) {
+            const day = parseInt(dmmmyMatch[1], 10);
+            const monthStr = dmmmyMatch[2].toLowerCase();
+
+            // Mapeamento de abreviações de meses para índice (0-11)
+            const monthMap: { [key: string]: number } = {
+                jan: 0,
+                fev: 1,
+                mar: 2,
+                abr: 3,
+                mai: 4,
+                jun: 5,
+                jul: 6,
+                ago: 7,
+                set: 8,
+                out: 9,
+                nov: 10,
+                dez: 11,
+            };
+
+        const month = monthMap[monthStr];
+        if (month === undefined) return "Skip";;
+
+        const year = parseInt(dmmmyMatch[3], 10) + 2000;
+        
+        return new Date(year, month, day);
+    }
+
         // Outros casos não reconhecidos
         return "Skip";
     }
@@ -252,7 +283,7 @@ export async function POST(req: NextRequest) {
             const name = file.name.toLowerCase();
             const arrayBuffer = await file.arrayBuffer();
 
-            if (name.endsWith(".xls") || name.endsWith(".xlsm")) {
+            if (name.endsWith(".xls") || name.endsWith(".xlsm") || name.endsWith(".xlsx")) {
                 const workbook = XLSX.read(arrayBuffer, { type: "array" });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];

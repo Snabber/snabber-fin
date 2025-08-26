@@ -1,4 +1,8 @@
 "use client";
+
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import { useState, useEffect, useMemo } from "react";
 import { Pie } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
@@ -84,6 +88,7 @@ export default function Dashboard() {
                 f.type === "text/plain" ||
                 f.name.endsWith(".csv") ||
                 f.name.endsWith(".xls") ||
+                f.name.endsWith(".xlsx") ||
                 f.name.endsWith(".xlsm")
         );
         setFiles((prev) => [...prev, ...droppedFiles]);
@@ -276,8 +281,25 @@ export default function Dashboard() {
 
     const selectAllVisible = () =>
         setSelectedTransactions(filteredTransactions.map((t) => t.transaction_id));
-    
+
     const deselectAll = () => setSelectedTransactions([]);
+
+    const loadTransactions = async () => {
+        if (!userId) return;
+        const params = new URLSearchParams({ userId });
+        if (yearFilter) params.append("year", yearFilter);
+        if (monthFilter !== "Todos") params.append("month", (monthsList.findIndex(m => m === monthFilter) + 1).toString());
+
+        try {
+            const res = await fetch(`/api/transactions?${params.toString()}`);
+            if (!res.ok) throw new Error("Erro ao carregar transações");
+            const data = await res.json();
+            setTransactions(data);
+            setFilteredTransactions(data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const handleBulkCategoryChange = async () => {
         if (!bulkCategory || selectedTransactions.length === 0) return;
@@ -395,28 +417,57 @@ export default function Dashboard() {
     // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
 
 
-const handleProcessFiles = async () => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-    formData.append("userId", localStorage.getItem("userId")!);
+    const handleProcessFiles = async () => {
+        const formData = new FormData();
+        files.forEach((f) => formData.append("files", f));
+        formData.append("userId", localStorage.getItem("userId")!);
 
-    const res = await fetch("/api/import", {
-        method: "POST",
-        body: formData, // ⚠️ Não passe JSON, use FormData!
-    });
+        const res = await fetch("/api/import", {
+            method: "POST",
+            body: formData, // ⚠️ Não passe JSON, use FormData!
+        });
 
-    const data = await res.json();
-    console.log(data);
+        const data = await res.json();
+        console.log(data);
 
-    if (res.ok) {
-        const shouldClear = window.confirm("Arquivos processados com sucesso! Deseja limpar a lista?");
-        if (shouldClear) {
-            setFiles([]);
+        if (res.ok) {
+            const shouldClear = window.confirm("Arquivos processados com sucesso! Deseja limpar a lista?");
+            if (shouldClear) {
+                setFiles([]);
+                  await loadTransactions(); // <-- recarrega a tabela
+            }
+        } else {
+              await loadTransactions(); // <-- recarrega a tabela
+            alert("Erro ao processar arquivos. Tente novamente.");
         }
-    } else {
-        alert("Erro ao processar arquivos. Tente novamente.");
-    }
-};
+    };
+
+    const handleDownloadXLS = () => {
+        if (!transactions || transactions.length === 0) {
+            alert("Não há transações para exportar.");
+            return;
+        }
+
+        // Cria os dados no mesmo formato da tabela
+        const dataToExport = transactions.map(t => ({
+            "Data": formatDate(t.date),
+            "Descrição": t.description,
+            "Valor": t.amount,
+            "Categoria": t.category,
+            "Comentário": t.comment,
+            "Conta": t.account,
+        }));
+
+        // Cria a planilha
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Transações");
+
+        // Converte para blob e faz download
+        const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([wbout], { type: "application/octet-stream" });
+        saveAs(blob, `transacoes_usuario_${userId}.xlsx`);
+    };
 
 
     return (
@@ -709,6 +760,21 @@ const handleProcessFiles = async () => {
                 <button onClick={handleBulkCategoryChange} style={{ backgroundColor: "#7c2ea0", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>
                     Atualizar Categoria
                 </button>
+
+                <button
+                    onClick={handleDownloadXLS}
+                    style={{
+                        backgroundColor: "#388e3c",
+                        color: "white",
+                        padding: "0.3rem 0.6rem",
+                        borderRadius: "4px",
+                        cursor: "pointer"
+
+                    }}
+                >
+                    Baixar XLS
+                </button>
+
                 <button onClick={handleDeleteTransactions} style={{ backgroundColor: "#f98c39", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>
                     Remover Selecionadas
                 </button>
@@ -749,24 +815,50 @@ const handleProcessFiles = async () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {displayedTransactions.map((t) => (
-                        <tr key={t.transaction_id} style={{ textAlign: "center" }}>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>
-                                <input type="checkbox" checked={selectedTransactions.includes(t.transaction_id)} onChange={() => toggleSelect(t.transaction_id)} />
-                            </td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{formatDate(t.date)}</td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem", cursor: "pointer", color: "#7c2ea0" }}
-                                onClick={() => handleEditClick(t)}>
-                                {t.description}
-                            </td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>
-                                {formatCurrency(t.amount)}
-                            </td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.category}</td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.comment}</td>
-                            <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>{t.account}</td>
-                        </tr>
-                    ))}
+                    {displayedTransactions.map((t) => {
+                        // Determina os estilos
+                        const isIgnored = t.category === "Ignorado";
+                        const isNegative = t.amount < 0;
+
+                        const textStyle: React.CSSProperties = {
+                            textDecoration: isIgnored ? "line-through" : "none",
+                            color: isNegative ? "#8B0000" : "inherit", // vermelho escuro para negativo
+                            cursor: "pointer",
+                        };
+
+                        return (
+                            <tr key={t.transaction_id} style={{ textAlign: "center" }}>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedTransactions.includes(t.transaction_id)}
+                                        onChange={() => toggleSelect(t.transaction_id)}
+                                    />
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                    {formatDate(t.date)}
+                                </td>
+                                <td
+                                    style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}
+                                    onClick={() => handleEditClick(t)}
+                                >
+                                    {t.description}
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                    {formatCurrency(t.amount)}
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                    {t.category}
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                    {t.comment}
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                    {t.account}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
