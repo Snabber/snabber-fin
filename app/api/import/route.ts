@@ -143,7 +143,9 @@ async function parseBankTransactions(
     userId: number,
     removeDots: boolean,
     transactions: any[],
-    startRow: number = 10
+    startRow: number = 10,
+    changeSignal: boolean = true,
+    colCategory: string = "To be Defined" 
 ) {
     console.log(`Importando ${source} XLS`);
 
@@ -158,6 +160,7 @@ async function parseBankTransactions(
         let amountRaw = rowData[colValSpent];
         const comment = rowData[colComment] || "";
         let valSource = source;
+        let valCategory = rowData[Number(colCategory)];
         if (valSource.length < 2) {
            valSource = rowData[Number(source)];
         }
@@ -185,8 +188,10 @@ async function parseBankTransactions(
             
             console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
-                amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
-                console.log(`5_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+                if(changeSignal){
+                    amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
+                    console.log(`5_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+                }
             }
 
 
@@ -204,7 +209,13 @@ async function parseBankTransactions(
         console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
         
         const description = `${descriptionRaw} ${comment}`;
-        const category = await guessCategory(comment, description, userId);
+        
+
+        var category = await guessCategory(comment, description, userId);
+
+        if(colCategory !== "To be Defined"){
+           category = rowData[Number(colCategory)]; 
+        }
 
         console.log(`10_ ${dateNew} | ${description} | ${amount} | ${comment}  | ${valSource} | ${category}`);
 
@@ -258,7 +269,7 @@ export async function POST(req: NextRequest) {
                     await parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, false, transactions);
                 }
                 else{
-                    await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2);
+                    await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2, false, "3");
                 }
 
             }
@@ -274,7 +285,7 @@ export async function POST(req: NextRequest) {
 
                 console.log("A_ JSON:", jsonData);
 
-                await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2);
+                await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2, false, "3");
 
                 console.log(`12_ Completei`);
             }
