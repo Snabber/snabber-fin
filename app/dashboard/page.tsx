@@ -39,6 +39,9 @@ export default function Dashboard() {
     const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
     const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
 
+    const [files, setFiles] = useState<File[]>([]);
+    const [fileContents, setFileContents] = useState<string[]>([]);
+
     const getToday = () => new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
@@ -67,6 +70,37 @@ export default function Dashboard() {
     const [yearFilter, setYearFilter] = useState<string>(""); // Começa vazio
     const [monthFilter, setMonthFilter] = useState<string>("Todos");
     const [availableYears, setAvailableYears] = useState<string[]>([]);
+
+    // === FUNÇÃO DE LOGOUT ===
+    const handleLogout = () => {
+        localStorage.removeItem("userId");
+        window.location.href = "/";
+    };
+
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+
+        const allowedExtensions = [".txt", ".csv", ".xls", ".xlsx", ".xlsm"];
+
+        const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
+            const ext = f.name.toLowerCase().slice(f.name.lastIndexOf("."));
+            return allowedExtensions.includes(ext);
+        });
+
+        setFiles((prev) => [...prev, ...droppedFiles]);
+
+        // lê conteúdo de cada arquivo como texto
+        for (const file of droppedFiles) {
+            const text = await file.text();
+            setFileContents((prev) => [...prev, text]);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+
+
 
     // Sempre busca todos os anos do usuário, independente do filtro
     useEffect(() => {
@@ -196,11 +230,11 @@ export default function Dashboard() {
                 const res = await fetch("/api/transactions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        ...form, 
-                        date: form.date || today, 
-                        amount: Number(form.amount), 
-                        userId 
+                    body: JSON.stringify({
+                        ...form,
+                        date: form.date || today,
+                        amount: Number(form.amount),
+                        userId
                     }),
                 });
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -364,9 +398,81 @@ export default function Dashboard() {
         };
     }, [displayedTransactions]);
 
+    // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
+    const handleProcessFiles = () => {
+        // você pode salvar no localStorage e ler na rota /upload
+        localStorage.setItem("uploadedContents", JSON.stringify(fileContents));
+        window.location.href = "/upload";
+    };
+
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
             <h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>
+
+            {/* BOTÃO LOGOUT TOPO DIREITO */}
+            <button
+                onClick={handleLogout}
+                style={{
+                    position: "absolute",
+                    top: "1rem",
+                    right: "1rem",
+                    backgroundColor: "#d32f2f",
+                    color: "white",
+                    padding: "0.5rem 1rem",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                }}
+            >
+                Logout
+            </button>
+
+
+            {/* ÁREA DE UPLOAD */}
+            <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                style={{
+                    border: "2px dashed #7c2ea0",
+                    borderRadius: "8px",
+                    padding: "2rem",
+                    textAlign: "center",
+                    marginBottom: "1.5rem",
+                    backgroundColor: "#fff",
+                }}
+            >
+                <p>Arraste arquivos .txt ou .csv aqui</p>
+                <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                    (Você pode soltar múltiplos arquivos)
+                </p>
+
+                {files.length > 0 && (
+                    <div style={{ marginTop: "1rem", textAlign: "left" }}>
+                        <strong>Arquivos carregados:</strong>
+                        <ul>
+                            {files.map((f, i) => (
+                                <li key={i}>{f.name}</li>
+                            ))}
+                        </ul>
+                        <button
+                            onClick={handleProcessFiles}
+                            style={{
+                                marginTop: "0.5rem",
+                                backgroundColor: "#7c2ea0",
+                                color: "white",
+                                padding: "0.5rem 1rem",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Processar Arquivos
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* ... resto do seu dashboard permanece igual ... */}
+
+
 
             {/* Filtros de Ano e Mês */}
             <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", alignItems: "center" }}>
@@ -530,7 +636,7 @@ export default function Dashboard() {
                                 whiteSpace: "nowrap",
                                 overflow: "hidden"
                             }}
-                            
+
                         >
                             <option value="">Selecione</option>
                             {accounts.map(acc => (
@@ -651,4 +757,5 @@ export default function Dashboard() {
             </table>
         </div>
     );
+
 }
