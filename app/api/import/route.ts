@@ -100,13 +100,13 @@ function excelToDate(value: any): Date | "Skip" {
                 dez: 11,
             };
 
-        const month = monthMap[monthStr];
-        if (month === undefined) return "Skip";;
+            const month = monthMap[monthStr];
+            if (month === undefined) return "Skip";;
 
-        const year = parseInt(dmmmyMatch[3], 10) + 2000;
-        
-        return new Date(year, month, day);
-    }
+            const year = parseInt(dmmmyMatch[3], 10) + 2000;
+
+            return new Date(year, month, day);
+        }
 
         // Outros casos não reconhecidos
         return "Skip";
@@ -176,24 +176,30 @@ async function parseBankTransactions(
     transactions: any[],
     startRow: number = 10,
     changeSignal: boolean = true,
-    colCategory: string = "To be Defined" 
+    colCategory: string = "To be Defined"
 ) {
-    console.log(`Importando ${source} XLS`);
-
-
-    // Define a linha inicial, você pode parametrizar se quiser
+    console.log(`Importando ${source} - Linhas: ${jsonData.length} - Usuário: ${userId}`);
+    console.log(`Parâmetros: colDate=${colDate}, colDesc=${colDesc}, colValSpent=${colValSpent}, colValEarned=${colValEarned}, colComment=${colComment}, removeDots=${removeDots}, startRow=${startRow}, changeSignal=${changeSignal}, colCategory=${colCategory}`);
     
+    // Define a linha inicial, você pode parametrizar se quiser
+
     for (let row = startRow; row < jsonData.length; row++) {
         const rowData = jsonData[row];
+        const rowDataNext = jsonData[row+1];
 
         const dateRaw = rowData[colDate];
-        const descriptionRaw = rowData[colDesc];
+        var descriptionRaw = rowData[colDesc];
+        // no bradesco pix e visa electron tem entrada de duas linhas
+        if(descriptionRaw == "Transfe Pix" || descriptionRaw == "Visa Electron"  ){
+            descriptionRaw = rowDataNext[colDesc];        
+        }
+
         let amountRaw = rowData[colValSpent];
         const comment = rowData[colComment] || "";
         let valSource = source;
         let valCategory = rowData[Number(colCategory)];
         if (valSource.length < 2) {
-           valSource = rowData[Number(source)];
+            valSource = rowData[Number(source)];
         }
         //console.log(`ColValSpent "${rowData[colValSpent]}" XLS`);
         //console.log(`ColValEarned "${rowData[colValEarned]}" XLS`);
@@ -216,10 +222,10 @@ async function parseBankTransactions(
 
         if (amountRaw != null && amountRaw != " " && amountRaw != "") { //vem do colValSpent
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
-            
+
             console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
-                if(changeSignal){
+                if (changeSignal) {
                     amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
                     console.log(`5_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
                 }
@@ -238,14 +244,14 @@ async function parseBankTransactions(
         let amount = String(amountRaw).replace(",", ".");
 
         console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
-        
+
         const description = `${descriptionRaw} ${comment}`;
-        
+
 
         var category = await guessCategory(comment, description, userId);
 
-        if(colCategory !== "To be Defined"){
-           category = rowData[Number(colCategory)]; 
+        if (colCategory !== "To be Defined") {
+            category = rowData[Number(colCategory)];
         }
 
         console.log(`10_ ${dateNew} | ${description} | ${amount} | ${comment}  | ${valSource} | ${category}`);
@@ -266,6 +272,21 @@ async function parseBankTransactions(
     }
 }
 
+// Função auxiliar para buscar parâmetros pelo source
+async function getBankParseParams(source: string) {
+    const conn = await pool.getConnection();
+    try {
+        const [rows] = await conn.query(
+            `SELECT * FROM bank_parse_params WHERE source = ? LIMIT 1`,
+            [source]
+        );
+        if ((rows as any[]).length === 0) return null;
+        return (rows as any[])[0];
+    } finally {
+        conn.release();
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         const contentType = req.headers.get("content-type") || "";
@@ -278,7 +299,7 @@ export async function POST(req: NextRequest) {
         const files = formData.getAll("files") as any[];
         const userId = Number(formData.get("userId") || 0);
 
-        
+
         for (const file of files) {
             const name = file.name.toLowerCase();
             const arrayBuffer = await file.arrayBuffer();
@@ -287,22 +308,39 @@ export async function POST(req: NextRequest) {
                 const workbook = XLSX.read(arrayBuffer, { type: "array" });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[][];
-                console.log("XLS VA2" + jsonData[7][0]);
+                
+                console.log(">> JSON 7/0:", jsonData[7][0]);
+                console.log(">> JSON 6/0:", jsonData[6][0]);
 
-                // BRADESCO
-                if (jsonData[7][0] === "Data") {
-                    await  parseBankTransactions(jsonData, 0, 1, 4, 3, 2, "Bradesco", userId, true, transactions);
-                }
-                // AMEX
-                else if (jsonData[1][2] === "Bradesco Internet Banking") {
-                    await parseBankTransactions(jsonData, 0, 1, 4, 4, 2, "Amex", userId, false, transactions);
-                }
-                else{
-                    await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, "5", userId, false, transactions, 2, false, "3");
-                }
 
+                let source = '';
+                if (jsonData[7][0] === "Data" || jsonData[6][0] === "Data" || jsonData[8][0] === "Data") source = "Bradesco";
+                else if (jsonData[1][2] === "Bradesco Internet Banking") source = "Amex";
+                else source = "5"; // CSV puro
+
+                const params = await getBankParseParams(source);
+                if (!params) {
+                    console.warn(`Parâmetros não encontrados para source: ${source}, usando defaults`);
+                    //parametros padroes
+                    await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, source, userId, false, transactions, 2, false, "3");
+                } else {
+                    await parseBankTransactions(
+                        jsonData,
+                        params.colDate,
+                        params.colDesc,
+                        params.colValSpent,
+                        params.colValEarned,
+                        params.colComment,
+                        params.source,
+                        userId,
+                        !!params.removeDots,
+                        transactions,
+                        params.startRow,
+                        !!params.changeSignal,
+                        params.colCategory
+                    );
+                }
             }
             else if (name.endsWith(".csv")) {
                 const text = await file.text();
