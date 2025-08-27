@@ -19,11 +19,22 @@ type UserCategory = {
 };
 
 const ICON_OPTIONS = [
-  { label: "💰", url: "https://cdn-icons-png.flaticon.com/512/3081/3081650.png" },
-  { label: "🍔", url: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png" },
-  { label: "🏠", url: "https://cdn-icons-png.flaticon.com/512/616/616408.png" },
-  { label: "🚗", url: "https://cdn-icons-png.flaticon.com/512/743/743007.png" },
-  { label: "🎁", url: "https://cdn-icons-png.flaticon.com/512/190/190411.png" },
+  { label: "💰", value: "💰" }, // dinheiro
+  { label: "🍔", value: "🍔" }, // comida
+  { label: "🏠", value: "🏠" }, // casa
+  { label: "🚗", value: "🚗" }, // transporte
+  { label: "🎁", value: "🎁" }, // presentes
+  { label: "🍼", value: "🍼" }, // bebê/mamadeira
+  { label: "👶", value: "👶" }, // bebê
+  { label: "🧸", value: "🧸" }, // brinquedo
+  { label: "🎈", value: "🎈" }, // festa
+  { label: "📚", value: "📚" }, // educação
+  { label: "💻", value: "💻" }, // tecnologia
+  { label: "⚽", value: "⚽" }, // esporte/lazer
+  { label: "🍹", value: "🍹" }, // bebidas
+  { label: "🛒", value: "🛒" }, // compras/mercado
+  { label: "💡", value: "💡" }, // energia
+  { label: "📈", value: "📈" }, // investimentos
 ];
 
 const monthsList = [
@@ -154,7 +165,7 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
           userId,
           category: newCategory,
           monthlyLimit: 0,
-          iconUrl: ICON_OPTIONS[0].url,
+          iconUrl: ICON_OPTIONS[0].value, // padrão (💰
         }),
       });
       const data = await res.json();
@@ -170,10 +181,10 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
   };
 
   // Soma total dos limites do usuário
-const totalLimits = categories.reduce(
-  (sum, cat) => sum + Number(editingLimits[cat.id] ?? cat.monthlyLimit ?? 0),
-  0
-);
+  const totalLimits = categories.reduce(
+    (sum, cat) => sum + Number(editingLimits[cat.id] ?? cat.monthlyLimit ?? 0),
+    0
+  );
 
   return (
     <div style={{ padding: "", maxWidth: "", margin: "0 auto" }}>
@@ -188,8 +199,8 @@ const totalLimits = categories.reduce(
             <th>Usado no mês</th>
             <th>Limite Mensal</th>
             <th>Média Mensal</th>
-            <th>{/* Coluna para o seletor de ícones */}</th> 
-            <th>{/* Coluna para o botão de deletar */}</th> 
+            <th>{/* Coluna para o seletor de ícones */}</th>
+            <th>{/* Coluna para o botão de deletar */}</th>
           </tr>
         </thead>
         <tbody>
@@ -197,8 +208,8 @@ const totalLimits = categories.reduce(
             const limitValue = editingLimits[cat.id] ?? cat.monthlyLimit ?? 0;
             return (
               <tr key={cat.id} style={{ borderBottom: "1px solid #ccc" }}>
-                <td style={{ textAlign: "center" }}>
-                  <img src={cat.iconUrl ?? ICON_OPTIONS[0].url} alt="" width={24} height={24} />
+                <td style={{ textAlign: "center", fontSize: "20px" }}>
+                  {cat.iconUrl ?? ICON_OPTIONS[0].value}
                 </td>
                 <td style={{ maxWidth: "125px" }}>{cat.category}</td>
                 <td style={{ maxWidth: "125px" }}>
@@ -210,7 +221,7 @@ const totalLimits = categories.reduce(
                     onChange={(e) => handleLimitChange(cat.id, e.target.value)}
                   />{" "}
                 </td>
-                <td style={{ maxWidth: "50px" }}> R$ {cat.usedThisMonth} </td>
+                <td style={{ maxWidth: "50px" }}>  R$ {cat.usedThisMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </td>
                 <td style={{ maxWidth: "100px" }}>
                   <div style={{ background: "#eee", width: "100%", height: 12, borderRadius: 6 }}>
                     <div
@@ -223,7 +234,8 @@ const totalLimits = categories.reduce(
                     />
                   </div>
                   <small>
-                    R$ {cat.usedThisMonth} / {limitValue}
+                    R$ {cat.usedThisMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
+                    {limitValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </small>
                 </td>
                 <td style={{ maxWidth: "100px" }}>
@@ -243,7 +255,10 @@ const totalLimits = categories.reduce(
                       }}
                     />
                   </div>
-                  <small>R$ {cat.averageMonthly} / {limitValue}</small>
+                  <small>
+                    R$ {cat.averageMonthly.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
+                    {limitValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </small>
                 </td>
                 <td>
                   <select
@@ -251,7 +266,7 @@ const totalLimits = categories.reduce(
                     onChange={(e) => handleIconChange(cat.id, e.target.value)}
                   >
                     {ICON_OPTIONS.map((ico) => (
-                      <option key={ico.url} value={ico.url}>
+                      <option key={ico.label} value={ico.value}>
                         {ico.label}
                       </option>
                     ))}
@@ -295,13 +310,16 @@ const totalLimits = categories.reduce(
             );
           })}
         </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: "bold", borderTop: "2px solid #000" }}>
-              <td colSpan={4} style={{ textAlign: "right" }}>Total Limites:</td>
-              <td>R$ {totalLimits}</td>
-              <td colSpan={3}></td>
-            </tr>
-          </tfoot>
+        <tfoot>
+          <tr style={{ fontWeight: "bold", borderTop: "2px solid #000" }}>
+            <td></td>
+
+            <td style={{ maxWidth: "125px" }}>Gastos totais planejados</td>
+            <td>R$ {totalLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </td>
+            <td></td>
+            <td colSpan={3}></td>
+          </tr>
+        </tfoot>
       </table>
 
       <div style={{ marginTop: "1rem" }}>
