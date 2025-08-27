@@ -1,11 +1,17 @@
 "use client";
+import type { UserCategory } from '../types/user_category';
 
-
+import type { Transaction } from "../types/transaction";
 import { Chart, ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip } from "chart.js";
 import { Pie, Bar } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect, useMemo } from "react";
+import PieChartTab from "../dashboard/PieChartTab";
+import BarChartTab from "../dashboard/BarChartTab";
+import UploadTab from "../dashboard/UploadTab";
+import PlanningTab from './PlanningTab';
+
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 function formatDate(dateStr: string) {
@@ -24,17 +30,10 @@ function formatCurrency(value: number | string) {
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Transaction = {
-    transaction_id: number;
-    date: string;
-    description: string;
-    amount: number;
-    category: string;
-    comment: string;
-    account: string;
-};
 
 export default function Dashboard() {
+
+
 
     const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction; direction: "asc" | "desc" } | null>(null);
     const [columnFilters, setColumnFilters] = useState<{ [key: string]: string }>({});
@@ -60,10 +59,20 @@ export default function Dashboard() {
     const [bulkCategory, setBulkCategory] = useState("");
     const [filterText, setFilterText] = useState("");
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [categories, setCategories] = useState<string[]>([]);
+
+
+    const [categories, setCategories] = useState<UserCategory[]>([]);
+
+
     const [accounts, setAccounts] = useState<string[]>([]);
 
-    const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "1";
+    //const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "0";
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setUserId(localStorage.getItem("userId"));
+    }, []);
+    const userIdNumeric = Number(userId) || 0;
 
     const displayedTransactions = sortTransactions(filterTransactions(filteredTransactions));
 
@@ -325,9 +334,14 @@ export default function Dashboard() {
             const res = await fetch("/api/transactions/update-category", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ transactionIds: selectedTransactions, category: bulkCategory }),
+                body: JSON.stringify({
+                    userId: userId, // <-- adicionado
+                    transactionIds: selectedTransactions,
+                    category: bulkCategory
+                }),
             });
             if (!res.ok) throw new Error("Erro na atualização em massa");
+
             setTransactions((prev) =>
                 prev.map((t) =>
                     selectedTransactions.includes(t.transaction_id)
@@ -341,7 +355,6 @@ export default function Dashboard() {
             console.error(err);
         }
     };
-
     const handleDeleteTransactions = async () => {
         if (selectedTransactions.length === 0) return;
         try {
@@ -418,52 +431,6 @@ export default function Dashboard() {
         };
     }, [displayedTransactions]);
 
-    // Dados para o gráfico de pizza (Pie Chart)
-    const pieData = useMemo(() => {
-        // Agrupa valores negativos por categoria
-        const gastosPorCategoria: { [cat: string]: number } = {};
-        displayedTransactions.forEach(t => {
-            if (t.amount < 0 && t.category !== "Ignorado") {
-                gastosPorCategoria[t.category] = (gastosPorCategoria[t.category] || 0) + Math.abs(Number(t.amount));
-            }
-        });
-
-        // Ordena categorias por valor decrescente
-        const categoriasOrdenadas = Object.entries(gastosPorCategoria)
-            .sort((a, b) => b[1] - a[1]);
-
-        let categorias: string[] = [];
-        let valores: number[] = [];
-
-        if (categoriasOrdenadas.length > 20) {
-            // Mostra as 8 maiores, o resto agrupa em "Outros"
-            const maiores = categoriasOrdenadas.slice(0, 20);
-            const outros = categoriasOrdenadas.slice(20);
-            categorias = maiores.map(([cat]) => cat);
-            valores = maiores.map(([, val]) => val);
-
-            const outrosValor = outros.reduce((sum, [, val]) => sum + val, 0);
-            if (outrosValor > 0) {
-                categorias.push("Outros");
-                valores.push(outrosValor);
-            }
-        } else {
-            categorias = categoriasOrdenadas.map(([cat]) => cat);
-            valores = categoriasOrdenadas.map(([, val]) => val);
-        }
-
-        return {
-            labels: categorias,
-            datasets: [
-                {
-                    data: valores,
-                    backgroundColor: [
-                        "#7c2ea0", "#f98c39", "#388e3c", "#d32f2f", "#1976d2", "#fbc02d", "#8d6e63", "#0288d1", "#cccccc"
-                    ],
-                },
-            ],
-        };
-    }, [displayedTransactions]);
 
     // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
 
@@ -520,9 +487,10 @@ export default function Dashboard() {
         saveAs(blob, `transacoes_usuario_${userId}.xlsx`);
     };
 
-    const [activeTab, setActiveTab] = useState<"pie" | "transactions" | "upload">("pie");
 
-    const tabStyle = (tab: "pie" | "transactions" | "upload") => ({
+    const [activeTab, setActiveTab] = useState<"pie" | "transactions" | "upload" | "planning">("pie");
+
+    const tabStyle = (tab: "pie" | "transactions" | "upload" | "planning") => ({
         padding: "10px 20px",
         cursor: "pointer",
         borderBottom: activeTab === tab ? "2px solid #007bff" : "2px solid transparent",
@@ -530,6 +498,8 @@ export default function Dashboard() {
         fontWeight: activeTab === tab ? 600 : 400,
         transition: "all 0.3s ease",
     });
+
+
 
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
@@ -549,14 +519,8 @@ export default function Dashboard() {
                     cursor: "pointer",
                 }}
             >
-                Logout ({userId})
+                Logout {userId ? `(${userId})` : ""}
             </button>
-
-
-
-
-
-            {/* ... resto do seu dashboard permanece igual ... */}
 
 
 
@@ -601,81 +565,33 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {/* Conteúdo das abas */}
+
+
+            <div style={{ display: "flex", marginBottom: "1rem" }}>
+                <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>Gráfico PIE</div>
+                <div style={tabStyle("transactions")} onClick={() => setActiveTab("transactions")}>Gráfico Barra</div>
+                <div style={tabStyle("upload")} onClick={() => setActiveTab("upload")}>Upload CSV </div>
+                <div style={tabStyle("planning")} onClick={() => setActiveTab("planning")}>Planejamento</div>
+            </div>
+
+
             <div>
 
-                <div style={{ display: "flex", marginBottom: "1rem" }}>
-                    <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>Gráfico PIE</div>
-                    <div style={tabStyle("transactions")} onClick={() => setActiveTab("transactions")}>Gráfico Barra</div>
-                    <div style={tabStyle("upload")} onClick={() => setActiveTab("upload")}>Upload CSV</div>
-                </div>
+                {activeTab === "pie" && <PieChartTab transactions={displayedTransactions} />}
+                {activeTab === "transactions" && <BarChartTab transactions={displayedTransactions} />}
+                {activeTab === "upload" && (
+                    <UploadTab
+                        files={files}
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onProcessFiles={handleProcessFiles}
+                    />
+                )}
+                {activeTab === "planning" && <PlanningTab transactions={displayedTransactions} userId={userIdNumeric} month={monthFilter} year={yearFilter} />}
 
-                <div>
-                    {activeTab === "pie" && (
-                        <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
-                            <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Gastos por Categoria</h3>
-                            <Pie data={pieData} />
-                        </div>
-                    )}
-
-                    {activeTab === "transactions" && <div>Conteúdo das Transações
-
-                        {activeTab === "transactions" && (
-                            <div style={{ maxWidth: "800px", margin: "2rem auto" }}>
-                                <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>Entradas e Saídas por Mês</h3>
-                                <Bar data={barData} />
-                            </div>
-                        )}
-                    </div>}
-
-                    {activeTab === "upload" && <div>
-
-                        {/* ÁREA DE UPLOAD */}
-                        <div
-                            onDrop={handleDrop}
-                            onDragOver={handleDragOver}
-                            style={{
-                                border: "2px dashed #7c2ea0",
-                                borderRadius: "8px",
-                                padding: "2rem",
-                                textAlign: "center",
-                                marginBottom: "1.5rem",
-                                backgroundColor: "#fff",
-                            }}
-                        >
-                            <p>Arraste arquivos .txt ou .csv aqui</p>
-                            <p style={{ fontSize: "0.9rem", color: "#666" }}>
-                                (Você pode soltar múltiplos arquivos)
-                            </p>
-
-                            {files.length > 0 && (
-                                <div style={{ marginTop: "1rem", textAlign: "left" }}>
-                                    <strong>Arquivos carregados:</strong>
-                                    <ul>
-                                        {files.map((f, i) => (
-                                            <li key={i}>{f.name}</li>
-                                        ))}
-                                    </ul>
-                                    <button
-                                        onClick={handleProcessFiles}
-                                        style={{
-                                            marginTop: "0.5rem",
-                                            backgroundColor: "#7c2ea0",
-                                            color: "white",
-                                            padding: "0.5rem 1rem",
-                                            borderRadius: "6px",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        Processar Arquivos
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-
-                    </div>}
-                </div>
             </div>
+            {/* Conteúdo das abas */}
 
 
 
@@ -772,9 +688,11 @@ export default function Dashboard() {
                             )}
                             {categories
                                 .slice() // cria uma cópia para não mutar o estado
-                                .sort((a, b) => a.localeCompare(b)) // ordena alfabeticamente
-                                .map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
+                                .sort((a, b) => a.category.localeCompare(b.category)) // ordena alfabeticamente pelo nome da categoria
+                                .map((cat) => (
+                                    <option key={cat.id} value={cat.category}>
+                                        {cat.category}
+                                    </option>
                                 ))}
                         </select>
                         <input
@@ -842,8 +760,10 @@ export default function Dashboard() {
                         style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc", flex: 1 }}
                     >
                         <option value="">Categoria em massa</option>
-                        {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
+                        {categories.map((cat) => (
+                            <option key={cat.id} value={cat.category}>
+                                {cat.category}
+                            </option>
                         ))}
                     </select>
                     <input

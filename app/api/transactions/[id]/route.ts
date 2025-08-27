@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 
-// Configuração do MySQL (usa a mesma que você já tem no projeto)
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -12,13 +11,39 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { date, description, amount, category, comment, account } = body;
+    const { date, description, amount, category, comment, account, userId } = body;
 
-    const [result] = await pool.query(
+    if (!userId) {
+      return NextResponse.json({ error: "userId obrigatório" }, { status: 400 });
+    }
+
+    // 1️⃣ Verifica se a categoria existe para o usuário
+    if (category && category.trim() !== "") {
+      const [rows] = await pool.query(
+        `SELECT id FROM user_categories WHERE user_id = ? AND category = ?`,
+        [userId, category]
+      );
+
+      const exists = (rows as any[]).length > 0;
+
+      if (!exists) {
+        // 2️⃣ Se não existir, insere
+        await pool.query(
+          `INSERT INTO user_categories (user_id, category) VALUES (?, ?)`,
+          [userId, category]
+        );
+      }
+    }
+
+    // 3️⃣ Atualiza a transação
+    await pool.query(
       `UPDATE money_transactions
        SET date = ?, description = ?, amount = ?, category = ?, comment = ?, account = ?
        WHERE transaction_id = ?`,
@@ -26,8 +51,11 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     );
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-    return NextResponse.json({ error: "Erro ao atualizar transação" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Erro ao atualizar transação" },
+      { status: 500 }
+    );
   }
 }
