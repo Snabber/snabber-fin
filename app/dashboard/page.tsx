@@ -3,7 +3,6 @@ import type { UserCategory } from '../types/user_category';
 
 import type { Transaction } from "../types/transaction";
 import { Chart, ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip } from "chart.js";
-import { Pie, Bar } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect, useMemo } from "react";

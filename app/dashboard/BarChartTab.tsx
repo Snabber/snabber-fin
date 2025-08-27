@@ -1,7 +1,7 @@
 "use client";
 import { Bar } from "react-chartjs-2";
 import { useMemo } from "react";
-import type { Transaction } from "@/types/transaction";
+import type { Transaction } from "../types/transaction";
 
 const monthsList = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
