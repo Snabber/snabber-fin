@@ -192,6 +192,13 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
     0
   );
 
+
+  // Soma total dos gastos médios das categorias
+  const averageLimits = categories.reduce(
+    (sum, cat) => sum + (cat.averageMonthly > 0 ? cat.averageMonthly : 0),
+    0
+  );
+
   return (
     <div style={{ padding: "", maxWidth: "", margin: "0 auto" }}>
       <h3>Planejamento Financeiro</h3>
@@ -337,6 +344,22 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
                 R$ {usedLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
                 R$ {totalLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </small></td>
+            <td>
+              <div style={{ background: "#eee", width: "100%", height: 12, borderRadius: 6, marginTop: 4 }}>
+                <div
+                  style={{
+                    width: `${Math.min((usedLimits / (averageLimits || 1)) * 100, 100)}%`,
+                    background: usedLimits > averageLimits ? "red" : "#7c2ea0",
+                    height: 12,
+                    borderRadius: 6,
+                  }}
+                />
+              </div>
+              <small>
+                R$ {usedLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
+                R$ {averageLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </small>
+            </td>
             <td colSpan={3}></td>
           </tr>
         </tfoot>

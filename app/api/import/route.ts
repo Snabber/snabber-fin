@@ -180,23 +180,23 @@ async function parseBankTransactions(
 ) {
     console.log(`Importando ${source} - Linhas: ${jsonData.length} - Usuário: ${userId}`);
     console.log(`Parâmetros: colDate=${colDate}, colDesc=${colDesc}, colValSpent=${colValSpent}, colValEarned=${colValEarned}, colComment=${colComment}, removeDots=${removeDots}, startRow=${startRow}, changeSignal=${changeSignal}, colCategory=${colCategory}`);
-    
+
     const debugLevel = 2;
-    
+
     // Define a linha inicial, você pode parametrizar se quiser
 
     for (let row = startRow; row < jsonData.length; row++) {
         const rowData = jsonData[row];
-        const rowDataNext = jsonData[row+1];
+        const rowDataNext = jsonData[row + 1];
 
         const dateRaw = rowData[colDate];
         var descriptionRaw = rowData[colDesc];
         // no bradesco pix e visa electron tem entrada de duas linhas
-        if(descriptionRaw == "Transfe Pix" || descriptionRaw == "Visa Electron" || descriptionRaw == "Pix Qrcode Est" || descriptionRaw == "Transferencia Pix"){
-            descriptionRaw = rowDataNext[colDesc];   
-             if (debugLevel > 0) console.log(`ProximaLinha "${descriptionRaw}"  <<<<<<<<<<`);     
+        if (descriptionRaw == "Transfe Pix" || descriptionRaw == "Visa Electron" || descriptionRaw == "Pix Qrcode Est" || descriptionRaw == "Transferencia Pix") {
+            descriptionRaw = rowDataNext[colDesc];
+            if (debugLevel > 0) console.log(`ProximaLinha "${descriptionRaw}"  <<<<<<<<<<`);
         }
-        
+
         let amountRaw = rowData[colValSpent];
         const comment = rowData[colComment] || "";
         let valSource = source;
@@ -250,8 +250,8 @@ async function parseBankTransactions(
 
         var description = `${descriptionRaw}`;
 
-        if(source != "5") { // se for csv puro nao faz isso
-             description = `${descriptionRaw} ${comment}`;
+        if (source != "5") { // se for csv puro nao faz isso
+            description = `${descriptionRaw} ${comment}`;
         }
 
 
@@ -316,9 +316,13 @@ export async function POST(req: NextRequest) {
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[][];
-                
-                console.log(">> JSON 7/0:", jsonData[7][0]);
-                console.log(">> JSON 6/0:", jsonData[6][0]);
+
+                try {
+                    console.log(">> JSON 7/0:", jsonData[7][0]);
+                    console.log(">> JSON 6/0:", jsonData[6][0]);
+                }
+                catch { }
+
 
 
                 let source = '';
@@ -369,30 +373,53 @@ export async function POST(req: NextRequest) {
 
         console.log("Transactions parsed:", transactions);
 
+        let insertedTransactions = 0;
+        let createdCategories = 0;
+        let failedTransactions = 0;
+
 
         for (const tx of transactions) {
             try {
+                // Verifica se a categoria existe
+                const [existingCat] = await pool.query(
+                    "SELECT id FROM user_categories WHERE user_id = ? AND category = ?",
+                    [tx.userId, tx.category]
+                );
+
+                if ((existingCat as any[]).length === 0) {
+                    // Insere categoria nova
+                    await pool.query(
+                        "INSERT INTO user_categories (user_id, category, icon_url) VALUES (?, ?, ?)",
+                        [tx.userId, tx.category, "💰"] // emoji padrão
+                    );
+                    createdCategories++;
+                }
+
+                // Insere a transação
                 const [result] = await pool.query(
                     `INSERT INTO money_transactions 
-        (date, description, amount, category, comment, user_id, account) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        tx.date,
-                        tx.description,
-                        tx.amount,
-                        tx.category,
-                        tx.comment,
-                        tx.userId,
-                        tx.account,
-                    ]
+             (date, description, amount, category, comment, user_id, account) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [tx.date, tx.description, tx.amount, tx.category, tx.comment, tx.userId, tx.account]
                 );
-                console.log("Inserted transaction ID:", (result as any).insertId);
-            } catch (err) {
+
+                insertedTransactions++;
+            } catch (err: any) {
                 console.error("Error inserting transaction:", tx, err);
+                failedTransactions++;
             }
         }
 
-        return NextResponse.json({ success: true, transactions });
+        //return NextResponse.json({ success: true, transactions });
+        return NextResponse.json({
+            success: true,
+            summary: {
+                insertedTransactions,
+                createdCategories,
+                failedTransactions
+            }
+        });
+
     } catch (err) {
         console.error(err);
         return new NextResponse("Error processing files", { status: 500 });

@@ -457,17 +457,28 @@ export default function Dashboard() {
         const data = await res.json();
         console.log(data);
 
-        if (res.ok) {
-            const shouldClear = window.confirm("Arquivos processados com sucesso! Deseja limpar a lista?");
+        if (res.ok && data.success) {
+            const { insertedTransactions, createdCategories, failedTransactions } = data.summary;
+
+            let message = `Arquivos processados com sucesso!\n\n` +
+                `Transações inseridas: ${insertedTransactions}\n` +
+                `Categorias criadas: ${createdCategories}\n` +
+                `Transações com erro ou duplicadas: ${failedTransactions}\n\n` +
+                `Deseja limpar a lista de arquivos?`;
+
+            const shouldClear = window.confirm(message);
             if (shouldClear) {
                 setFiles([]);
-                await loadTransactions(); // <-- recarrega a tabela
+                await loadTransactions(); // recarrega a tabela
+            } else {
+                await loadTransactions();
             }
         } else {
-            await loadTransactions(); // <-- recarrega a tabela
+            await loadTransactions();
             alert("Erro ao processar arquivos. Tente novamente.");
         }
     };
+
 
     const handleDownloadXLS = () => {
         if (!transactions || transactions.length === 0) {
