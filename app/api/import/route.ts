@@ -248,7 +248,11 @@ async function parseBankTransactions(
 
         if (debugLevel > 0) console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
 
-        const description = `${descriptionRaw} ${comment}`;
+        var description = `${descriptionRaw}`;
+
+        if(source != "5") { // se for csv puro nao faz isso
+             description = `${descriptionRaw} ${comment}`;
+        }
 
 
         var category = await guessCategory(comment, description, userId);

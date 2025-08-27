@@ -186,6 +186,12 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
     0
   );
 
+  // Soma total dos limites do usuário
+  const usedLimits = categories.reduce(
+    (sum, cat) => sum + (cat.usedThisMonth > 0 ? cat.usedThisMonth : 0),
+    0
+  );
+
   return (
     <div style={{ padding: "", maxWidth: "", margin: "0 auto" }}>
       <h3>Planejamento Financeiro</h3>
@@ -316,7 +322,21 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
 
             <td style={{ maxWidth: "125px" }}>Gastos totais planejados</td>
             <td>R$ {totalLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </td>
-            <td></td>
+            <td>R$ {usedLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </td>
+            <td> <div style={{ background: "#eee", width: "100%", height: 12, borderRadius: 6 }}>
+              <div
+                style={{
+                  width: `${Math.min((usedLimits / (totalLimits || 1)) * 100, 100)}%`,
+                  background: usedLimits > totalLimits ? "red" : "#388e3c",
+                  height: 12,
+                  borderRadius: 6,
+                }}
+              />
+            </div>
+              <small>
+                R$ {usedLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
+                R$ {totalLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </small></td>
             <td colSpan={3}></td>
           </tr>
         </tfoot>
