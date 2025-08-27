@@ -34,6 +34,9 @@ export default function Dashboard() {
 
 
 
+
+
+
     const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction; direction: "asc" | "desc" } | null>(null);
     const [columnFilters, setColumnFilters] = useState<{ [key: string]: string }>({});
 
@@ -60,8 +63,15 @@ export default function Dashboard() {
     const [editingId, setEditingId] = useState<number | null>(null);
 
 
+    // categories: array de UserCategory vindo do estado ou API
+    // Garantir que categories é um array antes de mapear
     const [categories, setCategories] = useState<UserCategory[]>([]);
 
+    // Depois que categories existe
+    const userCategories: { category: string; icon: string }[] = categories.map(cat => ({
+        category: cat.category,
+        icon: cat.iconUrl ?? "💰",
+    }));
 
     const [accounts, setAccounts] = useState<string[]>([]);
 
@@ -801,6 +811,7 @@ export default function Dashboard() {
                 <thead style={{ backgroundColor: "#eaeaea" }}>
                     <tr>
                         <th style={{ border: "1px solid #ccc", padding: "0.5rem" }}>Sel.</th>
+                        <th style={{ border: "1px solid #ccc", padding: "0.5rem" }}>{/* Nova coluna */}</th>
                         {["date", "description", "amount", "category", "comment", "account"].map((col) => (
                             <th
                                 key={col}
@@ -832,15 +843,18 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                     {displayedTransactions.map((t) => {
-                        // Determina os estilos
                         const isIgnored = t.category === "Ignorado";
                         const isNegative = t.amount < 0;
 
                         const textStyle: React.CSSProperties = {
                             textDecoration: isIgnored ? "line-through" : "none",
-                            color: isNegative ? "#8B0000" : "inherit", // vermelho escuro para negativo
+                            color: isNegative ? "#8B0000" : "inherit",
                             cursor: "pointer",
                         };
+
+
+                        // Busca o emoji da categoria
+                        const categoryIcon = userCategories.find((c) => c.category === t.category)?.icon ?? "💰";
 
                         return (
                             <tr key={t.transaction_id} style={{ textAlign: "center" }}>
@@ -850,6 +864,9 @@ export default function Dashboard() {
                                         checked={selectedTransactions.includes(t.transaction_id)}
                                         onChange={() => toggleSelect(t.transaction_id)}
                                     />
+                                </td>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", fontSize: "20px" }}>
+                                    {categoryIcon} {/* Mostra o emoji */}
                                 </td>
                                 <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
                                     {formatDate(t.date)}
@@ -876,6 +893,7 @@ export default function Dashboard() {
                         );
                     })}
                 </tbody>
+
             </table>
         </div>
     );
