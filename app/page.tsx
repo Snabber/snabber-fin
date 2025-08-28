@@ -59,9 +59,14 @@ export default function Home() {
                 minWidth: "320px",
                 maxWidth: "90vw"
             }}>
-                <h1 style={{ color: "#7c2ea0", textAlign: "center", marginBottom: "1.5rem" }}>
+
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
+                    <img src="/img/Logo_Principal.png" alt="Logo" style={{ alignSelf:"center", height: "60px" }} />
+                </div>
+
+                <h3 style={{ color: "#7c2ea0", textAlign: "center", marginBottom: "1.5rem" }}>
                     {isCreating ? "Criar Usuário" : "Login"}
-                </h1>
+                </h3>
                 <form onSubmit={isCreating ? handleCreate : handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                     <input
                         type="text"
