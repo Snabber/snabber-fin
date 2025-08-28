@@ -21,7 +21,7 @@ const categoryIconMap: { [key: string]: string } = {
   // Casa e moradia
   casa: "🏠", moradia: "🏠", aluguel: "🏠", residencia: "🏠", habitação: "🏠", "nova casa": "🏡", "contas residenciais": "🏠",
   // Transporte
-  carro: "🚗", transporte: "🚗", gasolina: "⛽", uber: "🚕", viagem: "✈️🚗", estacionamento: "🅿️", "transportation": "🚗",
+  carro: "🚗", transporte: "🚗", gasolina: "⛽", uber: "🚕", viagem: "✈️", estacionamento: "🅿️", "transportation": "🚗",
   // Alimentação
   restaurante: "🍔", comida: "🍔", lanchonete: "🍔", alimentação: "🍽️", refeição: "🍽️", "restaurantes": "🍔", mercado: "🛒", food: "🍽️",
   // Lazer e entretenimento
@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 
 
 
