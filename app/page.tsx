@@ -60,10 +60,13 @@ export default function Home() {
                 maxWidth: "90vw"
             }}>
 
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
-                    <img src="/img/Logo_Principal.png" alt="Logo" style={{ alignSelf:"center", height: "60px" }} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem", }}>
+                    <img
+                        src="/img/Logo_Principal.png"
+                        alt="Logo"
+                        style={{ height: "60px" }}
+                    />
                 </div>
-
                 <h3 style={{ color: "#7c2ea0", textAlign: "center", marginBottom: "1.5rem" }}>
                     {isCreating ? "Criar Usuário" : "Login"}
                 </h3>
