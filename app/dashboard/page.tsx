@@ -1,6 +1,6 @@
 "use client";
 import type { UserCategory } from '../types/user_category';
-
+import Welcome from "../dashboard/Welcome";
 import type { Transaction } from "../types/transaction";
 import { Chart, ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip } from "chart.js";
 import * as XLSX from "xlsx";
@@ -68,15 +68,16 @@ export default function Dashboard() {
     const [categories, setCategories] = useState<UserCategory[]>([]);
 
     // Depois que categories existe
-    const userCategories: { category: string; icon: string }[] = categories.map(cat => ({
+    const userCategories: { category: string; icon_url: string }[] = categories.map(cat => ({
         category: cat.category,
-        icon: cat.iconUrl ?? "💰",
+        icon_url: cat.iconUrl ?? "💰",
     }));
 
     const [accounts, setAccounts] = useState<string[]>([]);
 
     //const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "0";
     const [userId, setUserId] = useState<string | null>(null);
+
 
     useEffect(() => {
         setUserId(localStorage.getItem("userId"));
@@ -508,36 +509,49 @@ export default function Dashboard() {
     };
 
 
-    const [activeTab, setActiveTab] = useState<"pie" | "transactions" | "upload" | "planning">("pie");
+    const [activeTab, setActiveTab] = useState<"welcome" | "pie" | "transactions" | "upload" | "planning">("pie");
 
-    const tabStyle = (tab: "pie" | "transactions" | "upload" | "planning") => ({
+    useEffect(() => {
+        if (transactions.length === 0) {
+            setActiveTab("welcome");
+        } else if (activeTab === "welcome") {
+            // se o usuário ganhar transações, e ainda está em welcome, joga para "pie"
+            setActiveTab("pie");
+        }
+    }, [transactions]);
+
+    const tabStyle = (tab: typeof activeTab) => ({
         padding: "10px 20px",
         cursor: "pointer",
-        borderBottom: activeTab === tab ? "2px solid #007bff" : "2px solid transparent",
-        color: activeTab === tab ? "#007bff" : "#555",
-        fontWeight: activeTab === tab ? 600 : 400,
+        borderBottom: activeTab === tab ? "2px solid #f98c39" : "2px solid transparent",
+        color: activeTab === tab ? "#7c2ea0" : "#383838",
+        fontWeight: activeTab === tab ? 700 : 400,
+        fontFamily: "andromeda-bold-webfont, sans-serif",
         transition: "all 0.3s ease",
     });
 
+    const [allSelected, setAllSelected] = useState(false);
+
+    const toggleAll = () => {
+        if (allSelected) {
+            deselectAll(); // sua função de desmarcar tudo
+        } else {
+            selectAllVisible(); // sua função de selecionar tudo
+        }
+        setAllSelected(!allSelected); // inverte o estado
+    };
 
 
     return (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
-            <h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
+                <img src="/img/Logo_Principal.png" alt="Logo" style={{ height: "60px" }} />
+            </div>
+
+            {/*<h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>*/}
 
             {/* BOTÃO LOGOUT TOPO DIREITO */}
-            <button
-                onClick={handleLogout}
-                style={{
-                    position: "absolute",
-                    top: "1rem",
-                    right: "1rem",
-                    backgroundColor: "#d32f2f",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                }}
+            <button className="redButton" onClick={handleLogout} style={{ position: "absolute", top: "20px", right: "20px" }}
             >
                 Logout {userId ? `(${userId})` : ""}
             </button>
@@ -588,55 +602,40 @@ export default function Dashboard() {
             {/* Conteúdo das abas */}
 
 
+            {/* Tabs */}
             <div style={{ display: "flex", marginBottom: "1rem" }}>
-                <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>Gráfico PIE</div>
-                <div style={tabStyle("transactions")} onClick={() => setActiveTab("transactions")}>Gráfico Barra</div>
-                <div style={tabStyle("upload")} onClick={() => setActiveTab("upload")}>Upload CSV </div>
-                <div style={tabStyle("planning")} onClick={() => setActiveTab("planning")}>Planejamento</div>
+                <div style={tabStyle("welcome")} onClick={() => setActiveTab("welcome")}>
+                    Bem-vindo
+                </div>
+                <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>
+                    Gráfico PIE
+                </div>
+                <div style={tabStyle("transactions")} onClick={() => setActiveTab("transactions")}>
+                    Gráfico Barra
+                </div>
+                <div style={tabStyle("upload")} onClick={() => setActiveTab("upload")}>
+                    Upload CSV
+                </div>
+                <div style={tabStyle("planning")} onClick={() => setActiveTab("planning")}>
+                    Planejamento
+                </div>
             </div>
 
-
+            {/* Conteúdo das abas */}
             <div>
-
+                {activeTab === "welcome" && <Welcome />}
                 {activeTab === "pie" && <PieChartTab transactions={displayedTransactions} />}
                 {activeTab === "transactions" && <BarChartTab transactions={displayedTransactions} />}
-                {activeTab === "upload" && (
-                    <UploadTab
-                        files={files}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onProcessFiles={handleProcessFiles}
-                    />
-                )}
-                {activeTab === "planning" && <PlanningTab transactions={displayedTransactions} userId={userIdNumeric} month={monthFilter} year={yearFilter} />}
-
+                {activeTab === "upload" && (<UploadTab files={files} onDrop={handleDrop} onDragOver={handleDragOver} onProcessFiles={handleProcessFiles} />)}
+                {activeTab === "planning" && (<PlanningTab transactions={displayedTransactions} userId={userIdNumeric} month={monthFilter} year={yearFilter} />)}
             </div>
+
             {/* Conteúdo das abas */}
 
+            <br></br>
 
 
-            <input
-                type="text"
-                placeholder="Filtrar transações..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                style={{ marginBottom: "1rem", padding: "0.5rem", width: "300px", borderRadius: "6px", border: "1px solid #ccc" }}
-            />
-
-            <button
-                style={{
-                    marginBottom: "1rem",
-                    backgroundColor: "#7c2ea0",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    marginLeft: "1rem",
-                }}
-                onClick={() => setShowForm(!showForm)}
-            >
-                {showForm ? "Fechar" : editingId ? "Editar Transação" : "Adicionar Transação"}
-            </button>
+            {/* Formulário de Adicionar / Editar Transação */}
 
             {showForm && (
                 <form
@@ -770,58 +769,87 @@ export default function Dashboard() {
                 </form>
             )}
 
+            {/* Formulário de Adicionar / Editar Transação */}
+
             <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button onClick={selectAllVisible} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Selecionar Visíveis</button>
-                <button onClick={deselectAll} style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", backgroundColor: "#ccc" }}>Desmarcar Todos</button>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                    <select
-                        value={bulkCategory}
-                        onChange={e => setBulkCategory(e.target.value)}
-                        style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc", flex: 1 }}
-                    >
-                        <option value="">Categoria em massa</option>
-                        {categories.map((cat) => (
-                            <option key={cat.id} value={cat.category}>
-                                {cat.category}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        type="text"
-                        placeholder="Ou digite uma categoria"
-                        value={bulkCategory}
-                        onChange={e => setBulkCategory(e.target.value)}
-                        style={{ flex: 2 }}
-                    />
-                </div>
-                <button onClick={handleBulkCategoryChange} style={{ backgroundColor: "#7c2ea0", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>
-                    Atualizar Categoria
+
+
+                <button className="purpleButton" onClick={() => setShowForm(!showForm)}>
+                    {showForm ? "Fechar" : editingId ? "Editar Transação" : "Adicionar Transação"}
                 </button>
 
-                <button
-                    onClick={handleDownloadXLS}
-                    style={{
-                        backgroundColor: "#388e3c",
-                        color: "white",
-                        padding: "0.3rem 0.6rem",
-                        borderRadius: "4px",
-                        cursor: "pointer"
+                <input
+                    type="text"
+                    placeholder="Filtrar transações..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    style={{ padding: "0.5rem", width: "300px", borderRadius: "6px", border: "1px solid #ccc" }}
+                />
 
-                    }}
-                >
+
+
+
+
+                {selectedTransactions.length > 0 && (
+                    <>
+                        {/* Campo de seleção ou input para categoria em massa */}
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                            <select
+                                value={bulkCategory}
+                                onChange={e => setBulkCategory(e.target.value)}
+                                style={{ padding: "0.3rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc", flex: 1 }}
+                            >
+                                <option value="">Categoria em massa</option>
+                                {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.category}>
+                                        {cat.category}
+                                    </option>
+                                ))}
+                            </select>
+                            <input
+                                type="text"
+                                placeholder="Ou digite uma categoria"
+                                value={bulkCategory}
+                                onChange={e => setBulkCategory(e.target.value)}
+                                style={{ padding: "0.5rem", width: "300px", borderRadius: "6px", border: "1px solid #ccc" }}
+                            />
+                        </div>
+
+                        {/* Botão atualizar categoria */}
+                        <button className="purpleButton" onClick={handleBulkCategoryChange}>
+                            Atualizar Categoria
+                        </button>
+
+                        {/* Botão remover selecionadas */}
+                        <button className="orangeButton" onClick={handleDeleteTransactions}>
+                            Remover Selecionadas
+                        </button>
+                    </>
+                )}
+                <button className="greenButton" onClick={handleDownloadXLS}>
                     Baixar XLS
                 </button>
 
-                <button onClick={handleDeleteTransactions} style={{ backgroundColor: "#f98c39", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px" }}>
-                    Remover Selecionadas
-                </button>
+                {/* Botão Limpar Filtros */}
+                {Object.values(columnFilters).some(value => value) && (
+                    <button className="redButton" onClick={() => setColumnFilters({})}>
+                        Limpar Filtros
+                    </button>
+                )}
+
             </div>
 
 
             <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "white", borderRadius: "6px", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
                 <thead style={{ backgroundColor: "#eaeaea" }}>
                     <tr>
-                        <th style={{ border: "1px solid #ccc", padding: "0.5rem" }}>Sel.</th>
+
+                        <th style={{ border: "1px solid #ccc", padding: "0.5rem" }}>
+                            <button className="greyButton" onClick={toggleAll}>
+                                {allSelected ? "✅" : "⬜"}
+                            </button>
+                        </th>
+
                         <th style={{ border: "1px solid #ccc", padding: "0.5rem" }}>{/* Nova coluna */}</th>
                         {["date", "description", "amount", "category", "comment", "account"].map((col) => (
                             <th
@@ -865,7 +893,7 @@ export default function Dashboard() {
 
 
                         // Busca o emoji da categoria
-                        const categoryIcon = userCategories.find((c) => c.category === t.category)?.icon ?? "💰";
+                        const categoryIcon = userCategories.find((c) => c.category === t.category)?.icon_url ?? "💰";
 
                         return (
                             <tr key={t.transaction_id} style={{ textAlign: "center" }}>

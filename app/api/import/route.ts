@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import mysql from "mysql2/promise";
+import { getCategoryIcon } from "../categories/route";
 
 // Crie o pool se ainda não tiver
 const pool = mysql.createPool({
@@ -16,6 +17,8 @@ const pool = mysql.createPool({
 });
 
 const transactions: any[] = [];
+
+const debugLevel = 0;
 
 
 // Função auxiliar para converter data Excel (número) para JS Date
@@ -181,7 +184,7 @@ async function parseBankTransactions(
     console.log(`Importando ${source} - Linhas: ${jsonData.length} - Usuário: ${userId}`);
     console.log(`Parâmetros: colDate=${colDate}, colDesc=${colDesc}, colValSpent=${colValSpent}, colValEarned=${colValEarned}, colComment=${colComment}, removeDots=${removeDots}, startRow=${startRow}, changeSignal=${changeSignal}, colCategory=${colCategory}`);
 
-    const debugLevel = 2;
+    
 
     // Define a linha inicial, você pode parametrizar se quiser
 
@@ -206,27 +209,26 @@ async function parseBankTransactions(
         }
         //console.log(`ColValSpent "${rowData[colValSpent]}" XLS`);
         //console.log(`ColValEarned "${rowData[colValEarned]}" XLS`);
-        console.log(`0_ ${dateRaw} | ${descriptionRaw} | ${amountRaw} | ${comment} | ${source} | ${valSource}`);
+        if (debugLevel > 0) console.log(`0_ ${dateRaw} | ${descriptionRaw} | ${amountRaw} | ${comment} | ${source} | ${valSource}`);
 
         if (!descriptionRaw || descriptionRaw === "SALDO ANTERIOR" || descriptionRaw === "Total do Dia") {
             continue;
         }
 
-        if (debugLevel > 0) console.log(`DateRaw "${dateRaw}" XLS`);
         const dateXl = excelToDate(dateRaw);
 
-        if (debugLevel > 0) console.log(`0.1_Date "${dateXl}" XLS`);
+        if (debugLevel > 1) console.log(`0.1_Date "${dateXl}" XLS`);
 
-        if (debugLevel > 0) console.log(`2_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+        if (debugLevel > 1) console.log(`2_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
 
         if (dateXl === "Skip") continue;
         const dateNew = dateXl.toISOString().slice(0, 10); // YYYY-MM-DD
-        if (debugLevel > 0) console.log(`3_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+        if (debugLevel > 1) console.log(`3_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
 
         if (amountRaw != null && amountRaw != " " && amountRaw != "") { //vem do colValSpent
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
 
-            if (debugLevel > 0) console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 1) console.log(`4_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (Number(String(amountRaw).replace(",", ".")) > 0) {
                 if (changeSignal) {
                     amountRaw = Number(String(amountRaw).replace(",", ".")) * -1;
@@ -237,13 +239,13 @@ async function parseBankTransactions(
 
         } else { //vem do colValEarned
             amountRaw = rowData[colValEarned];
-            if (debugLevel > 0) console.log(`6_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 1) console.log(`6_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
             if (removeDots) amountRaw = String(amountRaw).replace(/\./g, "");
-            if (debugLevel > 0) console.log(`7_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
+            if (debugLevel > 1) console.log(`7_ ${dateNew} | ${descriptionRaw} | ${amountRaw} | ${comment}`);
         }
 
         if (debugLevel > 1) console.log(`ElseIf ${amountRaw} RAW`);
-        if (debugLevel > 0) console.log(`8_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
+        if (debugLevel > 1) console.log(`8_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
         let amount = String(amountRaw).replace(",", ".");
 
         if (debugLevel > 0) console.log(`9_ ${dateXl} | ${descriptionRaw} | ${amountRaw} | ${comment}  | ${valSource}`);
@@ -261,7 +263,7 @@ async function parseBankTransactions(
             category = rowData[Number(colCategory)];
         }
 
-        console.log(`10_ ${dateNew} | ${description} | ${amount} | ${comment}  | ${valSource} | ${category}`);
+        if (debugLevel > -1) console.log(`10_ ${dateNew} | ${description} | ${amount} | ${comment}  | ${valSource} | ${category}`);
 
         transactions.push({
             date: dateNew,
@@ -273,9 +275,9 @@ async function parseBankTransactions(
             category,
         });
 
-        console.log(`11_ Transaction Count: ${transactions.length}`);
+        if (debugLevel > 0)  console.log(`11_ Transaction Count: ${transactions.length}`);
 
-        console.log(`-`);
+        
     }
 }
 
@@ -325,10 +327,23 @@ export async function POST(req: NextRequest) {
 
 
 
-                let source = '';
-                if (jsonData[7][0] === "Data" || jsonData[6][0] === "Data" || jsonData[8][0] === "Data") source = "Bradesco";
-                else if (jsonData[1][2] === "Bradesco Internet Banking") source = "Amex";
-                else source = "5"; // CSV puro
+                let source = "5"; // padrão CSV puro
+
+                // Verifica se jsonData existe e tem linhas suficientes
+                if (jsonData?.length) {
+                    const row7 = jsonData[7];
+                    const row6 = jsonData[6];
+                    const row8 = jsonData[8];
+                    const row1 = jsonData[1];
+
+                    // Checa se as linhas e a célula 0 existem antes de comparar
+                    if ((row7?.[0] === "Data") || (row6?.[0] === "Data") || (row8?.[0] === "Data")) {
+                        source = "Bradesco";
+                    } else if (row1?.[2] === "Bradesco Internet Banking") {
+                        source = "Amex";
+                    }
+                }
+
 
                 const params = await getBankParseParams(source);
                 if (!params) {
@@ -387,11 +402,15 @@ export async function POST(req: NextRequest) {
                 );
 
                 if ((existingCat as any[]).length === 0) {
+                    // Determina o ícone automaticamente
+                    const iconUrl = await getCategoryIcon(tx.category);
+
                     // Insere categoria nova
                     await pool.query(
                         "INSERT INTO user_categories (user_id, category, icon_url) VALUES (?, ?, ?)",
-                        [tx.userId, tx.category, "💰"] // emoji padrão
+                        [tx.userId, tx.category, iconUrl]
                     );
+
                     createdCategories++;
                 }
 

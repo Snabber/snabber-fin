@@ -1,4 +1,5 @@
 "use client";
+import { getCategoryIcon } from "../api/categories/route";
 import type { Transaction } from "../types/transaction";
 import { useEffect, useState } from "react";
 
@@ -19,22 +20,51 @@ type UserCategory = {
 };
 
 const ICON_OPTIONS = [
-  { label: "💰", value: "💰" }, // dinheiro
-  { label: "🍔", value: "🍔" }, // comida
-  { label: "🏠", value: "🏠" }, // casa
-  { label: "🚗", value: "🚗" }, // transporte
-  { label: "🎁", value: "🎁" }, // presentes
-  { label: "🍼", value: "🍼" }, // bebê/mamadeira
-  { label: "👶", value: "👶" }, // bebê
-  { label: "🧸", value: "🧸" }, // brinquedo
-  { label: "🎈", value: "🎈" }, // festa
-  { label: "📚", value: "📚" }, // educação
-  { label: "💻", value: "💻" }, // tecnologia
-  { label: "⚽", value: "⚽" }, // esporte/lazer
-  { label: "🍹", value: "🍹" }, // bebidas
-  { label: "🛒", value: "🛒" }, // compras/mercado
-  { label: "💡", value: "💡" }, // energia
+  { label: "💰", value: "💰" }, // dinheiro/renda
   { label: "📈", value: "📈" }, // investimentos
+  { label: "💵", value: "💵" }, // rendimento/outras rendas
+  { label: "📥", value: "📥" }, // pix recebido
+  { label: "📤", value: "📤" }, // pix enviado
+  { label: "🏦", value: "🏦" }, // cheque especial
+  { label: "💸", value: "💸" }, // juros
+  { label: "💳", value: "💳" }, // outros empréstimos/tarifas
+  { label: "🧾", value: "🧾" }, // impostos
+  { label: "🏠", value: "🏠" }, // casa/moradia
+  { label: "🏡", value: "🏡" }, // nova casa
+  { label: "🚗", value: "🚗" }, // carro/transporte
+  { label: "⛽", value: "⛽" }, // gasolina
+  { label: "🚕", value: "🚕" }, // uber
+  { label: "✈️", value: "✈️" }, // viagem
+  { label: "🅿️", value: "🅿️" }, // estacionamento
+  { label: "🍔", value: "🍔" }, // restaurante/comida
+  { label: "🍽️", value: "🍽️" }, // alimentação/refeição
+  { label: "🛒", value: "🛒" }, // mercado/compras
+  { label: "🎭", value: "🎭" }, // lazer
+  { label: "🎬", value: "🎬" }, // entretenimento
+  { label: "🎥", value: "🎥" }, // cinema
+  { label: "🎊", value: "🎊" }, // festa/comemoração
+  { label: "✨", value: "✨" }, // astrix
+  { label: "🎲", value: "🎲" }, // snabber
+  { label: "🎁", value: "🎁" }, // presentes
+  { label: "🎂", value: "🎂" }, // aniversario
+  { label: "👪", value: "👪" }, // família
+  { label: "👶", value: "👶" }, // filhos
+  { label: "🙏", value: "🙏" }, // dízimo/oferta
+  { label: "🩺", value: "🩺" }, // saúde
+  { label: "🧠", value: "🧠" }, // psicóloga
+  { label: "🏋️", value: "🏋️" }, // academia
+  { label: "💅", value: "💅" }, // cuidados pessoais
+  { label: "🎓", value: "🎓" }, // educação
+  { label: "💼", value: "💼" }, // despesas do trabalho
+  { label: "🛠️", value: "🛠️" }, // serviços
+  { label: "🎨", value: "🎨" }, // compra studio
+  { label: "🛍️", value: "🛍️" }, // compras
+  { label: "🔨", value: "🔨" }, // reforma
+  { label: "🔥", value: "🔥" }, // gás
+  { label: "🧹", value: "🧹" }, // empregados domésticos
+  { label: "🌀", value: "🌀" }, // outros
+  { label: "❌", value: "❌" }, // ignorado
+  { label: "❓", value: "❓" }, // to be defined
 ];
 
 const monthsList = [
@@ -165,7 +195,7 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
           userId,
           category: newCategory,
           monthlyLimit: 0,
-          iconUrl: ICON_OPTIONS[0].value, // padrão (💰
+          iconUrl: await getCategoryIcon, // padrão (💰
         }),
       });
       const data = await res.json();

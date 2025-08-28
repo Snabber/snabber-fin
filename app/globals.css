@@ -54,3 +54,51 @@ input {
   border: 1px solid #ccc;
   border-top: none;
 }
+
+
+/* Purple Button */
+.purpleButton {
+  background-color: #7c2ea0;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Green Button */
+.greenButton {
+  background-color: #388e3c;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Orange Button */
+.orangeButton {
+  background-color: #f98c39;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+/* Grey Button */
+.greyButton {
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background-color: #ccc;
+  cursor: pointer;
+}
+
+.redButton {
+  padding: 0.6rem 0.9rem;
+  border-radius: 4px;
+  position: "absolute";
+  top: "1rem";
+  right: "1rem";
+  background-color: #f98c39;
+  color: white;
+  padding: "0.5rem 1rem";
+  border-radius: "6px";
+  cursor: "pointer";
+}

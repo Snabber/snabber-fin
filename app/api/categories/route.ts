@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 import type { UserCategory } from "../../types/user_category";
+import { Console } from "console";
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -13,9 +14,39 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+const categoryIconMap: { [key: string]: string } = {
+  // Dinheiro, renda e investimentos
+  dinheiro: "💰", investimentos: "📈", rendimentos: "💰", renda: "💰", salario: "💰", remuneracao: "💰",
+  rendimento: "💵", "outras rendas": "💵", "pix recebido": "📥", "pix enviado": "📤", "cheque especial": "🏦", juros: "💸",  "outros empréstimos": "💳", tarifas: "💳", impostos: "🧾",
+  // Casa e moradia
+  casa: "🏠", moradia: "🏠", aluguel: "🏠", residencia: "🏠", habitação: "🏠", "nova casa": "🏡", "contas residenciais": "🏠",
+  // Transporte
+  carro: "🚗", transporte: "🚗", gasolina: "⛽", uber: "🚕", viagem: "✈️🚗", estacionamento: "🅿️", "transportation": "🚗",
+  // Alimentação
+  restaurante: "🍔", comida: "🍔", lanchonete: "🍔", alimentação: "🍽️", refeição: "🍽️", "restaurantes": "🍔", mercado: "🛒", food: "🍽️",
+  // Lazer e entretenimento
+  lazer: "🎭", entretenimento: "🎬", cinema: "🎥", festa: "🎊", astrix: "✨", snabber: "🎲",
+  // Presentes e comemorações
+  presentes: "🎁", aniversario: "🎂", comemoração: "🎊",
+  // Família e filhos
+  familia: "👪", filhos: "👶", "dizimo/oferta": "🙏",
+  // Saúde e bem-estar
+  saude: "🩺", psicologa: "🧠", academia: "🏋️", "cuidados pessoais": "💅", health: "🩺",
+  // Educação e trabalho
+  educação: "🎓", "despesas do trabalho": "💼", services: "🛠️", "compra studio": "🎨", "compras": "🛍️",
+  // Casa e reformas
+  reforma: "🔨", gas: "🔥", "empregados doméstic": "🧹",
+  // Outros
+  outros: "🌀", ignorado: "❌", "to be defined": "❓",
+  // Mapeamentos internacionais
+  income: "💰", utilities: "💡", entertainment: "🎭", housing: "🏠"
+};
+
 // GET: Pega categorias de um usuário
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
+
+
   if (!userId) return NextResponse.json({ error: "userId obrigatório" }, { status: 400 });
 
   const [rows] = await pool.query(
@@ -48,20 +79,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Define iconUrl automaticamente se não vier do usuário
+  const finalIconUrl = iconUrl ?? await getCategoryIcon(category) ?? '❓';
+
   try {
     const [result] = await pool.query(
       `INSERT INTO user_categories (user_id, category, monthly_limit, icon_url)
        VALUES (?, ?, ?, ?)`,
-      [userId, category, monthlyLimit ?? null, iconUrl ?? null]
+      [userId, category, monthlyLimit ?? null, finalIconUrl]
     );
 
     const insertedId = (result as any).insertId;
 
-    const newCategory: UserCategory = {
+    const newCategory = {
       id: insertedId,
       category,
       monthlyLimit: monthlyLimit ?? null,
-      iconUrl: iconUrl ?? null,
+      iconUrl: finalIconUrl,
     };
 
     return NextResponse.json({ category: newCategory });
@@ -70,6 +104,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+
+
 
 // PUT: Atualiza categoria existente
 export async function PUT(req: NextRequest) {
@@ -161,4 +198,31 @@ export async function DELETE(req: NextRequest) {
     console.error(err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+
+
+// Função simples para remover acentos
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD") // separa acentos
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/\s+/g, "_"); // substitui espaços por underscore
+}
+
+// Função para obter ícone de categoria (case insensitive + singular/plural)
+export async function getCategoryIcon(category: string): Promise<string> {
+  const normalized = normalizeText(category);
+
+  for (const key in categoryIconMap) {
+    if (key.toLowerCase() === normalized.toLowerCase()) {
+      console.log("Icon:", categoryIconMap[key]);
+      console.log("Icon:", key);
+      
+      return categoryIconMap[key];
+    }
+  }
+
+  return '❓'; // ícone padrão caso não encontre
 }
