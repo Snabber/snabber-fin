@@ -10,6 +10,7 @@ import PieChartTab from "../dashboard/PieChartTab";
 import BarChartTab from "../dashboard/BarChartTab";
 import UploadTab from "../dashboard/UploadTab";
 import PlanningTab from './PlanningTab';
+import BarPerCategory from './BarPerCategory';
 
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -43,6 +44,7 @@ export default function Dashboard() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
     const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
+    const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
 
     const [files, setFiles] = useState<File[]>([]);
     const [fileContents, setFileContents] = useState<string[]>([]);
@@ -139,6 +141,14 @@ export default function Dashboard() {
     useEffect(() => {
         if (!userId) return;
         const params = new URLSearchParams({ userId, year: yearFilter });
+
+        fetch(`/api/transactions?${params.toString()}`)
+            .then((res) => res.json())
+            .then((data) => {
+                setYearTransactions(data);
+            })
+            .catch((err) => console.error(err));
+
         if (monthFilter !== "Todos") params.append("month", (monthsList.findIndex(m => m === monthFilter) + 1).toString());
         fetch(`/api/transactions?${params.toString()}`)
             .then((res) => res.json())
@@ -509,7 +519,7 @@ export default function Dashboard() {
     };
 
 
-    const [activeTab, setActiveTab] = useState<"welcome" | "pie" | "transactions" | "upload" | "planning">("pie");
+    const [activeTab, setActiveTab] = useState<"welcome" | "pie" | "transactions" | "upload" | "planning" | "barcategory">("pie");
 
     useEffect(() => {
         if (transactions.length === 0) {
@@ -607,6 +617,9 @@ export default function Dashboard() {
                 <div style={tabStyle("welcome")} onClick={() => setActiveTab("welcome")}>
                     Bem-vindo
                 </div>
+                <div style={tabStyle("barcategory")} onClick={() => setActiveTab("barcategory")}>
+                    Gastos por Categoria
+                </div>
                 <div style={tabStyle("pie")} onClick={() => setActiveTab("pie")}>
                     Gráfico PIE
                 </div>
@@ -619,6 +632,7 @@ export default function Dashboard() {
                 <div style={tabStyle("planning")} onClick={() => setActiveTab("planning")}>
                     Planejamento
                 </div>
+                
             </div>
 
             {/* Conteúdo das abas */}
@@ -628,6 +642,7 @@ export default function Dashboard() {
                 {activeTab === "transactions" && <BarChartTab transactions={displayedTransactions} />}
                 {activeTab === "upload" && (<UploadTab files={files} onDrop={handleDrop} onDragOver={handleDragOver} onProcessFiles={handleProcessFiles} />)}
                 {activeTab === "planning" && (<PlanningTab transactions={displayedTransactions} userId={userIdNumeric} month={monthFilter} year={yearFilter} />)}
+                {activeTab === "barcategory" && (<BarPerCategory transactions={yearTransactions} filteredTransactions={displayedTransactions} userId={userIdNumeric} month={monthFilter} year={yearFilter} />)}
             </div>
 
             {/* Conteúdo das abas */}

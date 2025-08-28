@@ -127,9 +127,22 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
           );
         });
 
-        const averageMonthly = parseFloat(
-          (months.reduce((sum, m) => sum + m, 0) / 12).toFixed(2)
-        );
+        // Define divisor
+        const divisor = currentYear === new Date().getFullYear() ? currentMonth + 1 : 12;
+
+        // Filtra apenas transações do ano da categoria (currentYear)
+        const yearTransactions = catTransactions.filter(t => {
+          const tDate = new Date(t.date);
+          return tDate.getFullYear() === currentYear;
+        });
+
+        // Soma todas as transações do ano
+        const totalYearAmount = yearTransactions.reduce((sum, t) => sum + t.amount, 0) * -1;
+
+        // Define divisor: se for o ano atual, divide pelo mês atual + 1, senão 12
+
+
+        const averageMonthly = parseFloat((totalYearAmount / divisor).toFixed(2));
 
         return {
           ...cat,
@@ -210,24 +223,30 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
     }
   };
 
-  // Soma total dos limites do usuário
-  const totalLimits = categories.reduce(
-    (sum, cat) => sum + Number(editingLimits[cat.id] ?? cat.monthlyLimit ?? 0),
-    0
-  );
+  // Soma total dos limites do usuário, excluindo "ignorado"
+  const totalLimits = categories
+    .filter(cat => cat.category.toLowerCase() !== "ignorado")
+    .reduce(
+      (sum, cat) => sum + Number(editingLimits[cat.id] ?? cat.monthlyLimit ?? 0),
+      0
+    );
 
-  // Soma total dos limites do usuário
-  const usedLimits = categories.reduce(
-    (sum, cat) => sum + (cat.usedThisMonth > 0 ? cat.usedThisMonth : 0),
-    0
-  );
+  // Soma total dos limites usados, excluindo "ignorado"
+  const usedLimits = categories
+    .filter(cat => cat.category.toLowerCase() !== "ignorado")
+    .reduce(
+      (sum, cat) => sum + (cat.usedThisMonth > 0 ? cat.usedThisMonth : 0),
+      0
+    );
 
 
   // Soma total dos gastos médios das categorias
-  const averageLimits = categories.reduce(
-    (sum, cat) => sum + (cat.averageMonthly > 0 ? cat.averageMonthly : 0),
-    0
-  );
+  const averageLimits = categories
+    .filter(cat => cat.category.toLowerCase() !== "ignorado")
+    .reduce(
+      (sum, cat) => sum + (cat.averageMonthly > 0 ? cat.averageMonthly : 0),
+      0
+    );
 
   return (
     <div style={{ padding: "", maxWidth: "", margin: "0 auto" }}>
@@ -378,16 +397,17 @@ const PlanningTab: React.FC<PlanningTabProps> = ({ transactions, userId, month, 
               <div style={{ background: "#eee", width: "100%", height: 12, borderRadius: 6, marginTop: 4 }}>
                 <div
                   style={{
-                    width: `${Math.min((usedLimits / (averageLimits || 1)) * 100, 100)}%`,
-                    background: usedLimits > averageLimits ? "red" : "#7c2ea0",
+                    width: `${Math.min((averageLimits / (totalLimits || 1)) * 100, 100)}%`,
+                    background: averageLimits > totalLimits ? "red" : "#7c2ea0",
                     height: 12,
                     borderRadius: 6,
                   }}
                 />
               </div>
               <small>
-                R$ {usedLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /{" "}
-                R$ {averageLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {averageLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/{" "}
+                R$ {totalLimits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+
               </small>
             </td>
             <td colSpan={3}></td>
