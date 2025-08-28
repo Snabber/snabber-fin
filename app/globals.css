@@ -102,3 +102,48 @@ input {
   border-radius: "6px";
   cursor: "pointer";
 }
+
+.stats-container {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card {
+  flex: 1;
+  padding: 1rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.stat-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+}
+
+.stat-value {
+  font-weight: bold;
+  font-size: 1.4rem;
+}
+
+/* Total */
+.stat-total {
+  background-color: #ede7f6;
+  color: #7c2ea0;
+}
+
+/* Saídas */
+.stat-saidas {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+/* Entradas */
+.stat-entradas {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}

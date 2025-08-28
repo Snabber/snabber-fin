@@ -3,6 +3,14 @@ import type { Transaction } from "../types/transaction";
 
 import { Pie } from "react-chartjs-2";
 import { useMemo } from "react";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 type Props = {
   transactions: Transaction[];
@@ -26,7 +34,6 @@ export default function PieChartTab({ transactions }: Props) {
     const labels = categoriasOrdenadas.map(([cat]) => cat);
     const valores = categoriasOrdenadas.map(([_, val]) => val);
 
-    // Paleta de cores grande (25 cores)
     const colors = [
       "#7c2ea0", "#f98c39", "#388e3c", "#d32f2f", "#36A2EB",
       "#FF6384", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40",
@@ -46,12 +53,37 @@ export default function PieChartTab({ transactions }: Props) {
     };
   }, [transactions]);
 
+  const pieOptions = {
+    plugins: {
+      legend: {
+        position: "right" as const,
+        labels: {
+          boxWidth: 20,
+          padding: 15,
+        },
+      },
+    },
+    maintainAspectRatio: false, // deixa ocupar mais espaço
+  };
+
   return (
-    <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
-      <h3 style={{ textAlign: "center", color: "#7c2ea0", marginBottom: "0.5rem" }}>
+    <div
+      style={{
+        maxWidth: "800px",
+        height: "400px",
+        margin: "2rem auto",
+      }}
+    >
+      <h3
+        style={{
+          textAlign: "center",
+          color: "#7c2ea0",
+          marginBottom: "0.5rem",
+        }}
+      >
         Gastos por Categoria
       </h3>
-      <Pie data={pieData} />
+      <Pie data={pieData} options={pieOptions} />
     </div>
   );
 }

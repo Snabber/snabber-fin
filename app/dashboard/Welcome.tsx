@@ -28,8 +28,8 @@ export default function Welcome() {
           transform: "translate(-50%, -50%)",
           width: "60%",
           height: "auto",
-          opacity: 0.1, // 40% transparência
-          pointerEvents: "none", // não interfere nos cliques
+          opacity: 0.1,
+          pointerEvents: "none",
         }}
       />
 
@@ -38,28 +38,51 @@ export default function Welcome() {
           position: "relative",
           fontFamily: "andromeda-bold-webfont, sans-serif",
           fontSize: "2rem",
-          marginBottom: "1rem",
+          marginBottom: "1.5rem",
           color: "#7c2ea0",
         }}
       >
-        Bem-vindo!
+        📂 Baixe o modelo de Excel
       </h2>
 
       <p
         style={{
           position: "relative",
           fontSize: "1.2rem",
-          marginBottom: "1.5rem",
+          marginBottom: "2rem",
           color: "#383838",
         }}
       >
-        Para começar, adicione uma transação clicando em{" "}
-        <span style={{ color: "#f98c39", fontWeight: "bold" }}>Adicionar</span>{" "}
-        ou importe um arquivo <strong>TXT</strong>, <strong>CSV</strong> ou{" "}
-        <strong>XML</strong> compatível.
+        Use o modelo abaixo para importar suas transações:
       </p>
 
-      <p
+      <a
+        href="/files/modeloSnabber.xlsx"
+        download
+        style={{
+          position: "relative",
+          display: "inline-block",
+          padding: "0.8rem 2rem",
+          borderRadius: "12px",
+          backgroundColor: "#7c2ea0",
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.1rem",
+          textDecoration: "none",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+          transition: "all 0.2s ease",
+        }}
+        onMouseOver={(e) =>
+          ((e.target as HTMLElement).style.backgroundColor = "#5b1f77")
+        }
+        onMouseOut={(e) =>
+          ((e.target as HTMLElement).style.backgroundColor = "#7c2ea0")
+        }
+      >
+        ⬇️ Download modeloSnabber.xlsx
+      </a>
+
+            <p
         style={{
           position: "relative",
           fontSize: "1rem",
@@ -69,9 +92,6 @@ export default function Welcome() {
       >
         Sua jornada financeira começa aqui 🚀
       </p>
-
-      {/* Fonte Andromeda (ajuste o caminho se necessário, ex.: /andromeda-bold-webfont.woff2) */}
-      
     </div>
   );
 }

@@ -6,11 +6,12 @@ import { Chart, ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tool
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect, useMemo } from "react";
-import PieChartTab from "../dashboard/PieChartTab";
-import BarChartTab from "../dashboard/BarChartTab";
-import UploadTab from "../dashboard/UploadTab";
+import PieChartTab from "./PieChartTab";
+import BarChartTab from "./BarChartTab";
+import UploadTab from "./UploadTab";
 import PlanningTab from './PlanningTab';
 import BarPerCategory from './BarPerCategory';
+import MonthYearGridPicker from "../../components/MonthYearGridPicker";
 
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -30,12 +31,16 @@ function formatCurrency(value: number | string) {
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const formatCurrencyNoDecimals = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
 
 export default function Dashboard() {
-
-
-
-
 
 
     const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction; direction: "asc" | "desc" } | null>(null);
@@ -312,7 +317,10 @@ export default function Dashboard() {
         setEditingId(transaction.transaction_id);
         setShowForm(true);
 
-        window.scrollTo({ top: 850, behavior: "smooth" });
+        const formEl = document.getElementById("transactionForm");
+        if (formEl) {
+            formEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
     };
 
     const toggleSelect = (id: number) => {
@@ -567,8 +575,20 @@ export default function Dashboard() {
             </button>
 
 
+            <MonthYearGridPicker
+  year={Number(yearFilter)}
+  month={monthFilter === "Todos" ? "Todos" : monthsList.indexOf(monthFilter)}
+  onChange={(newYear, newMonth) => {
+    setYearFilter(String(newYear));
+    if (newMonth === "Todos") {
+      setMonthFilter("Todos");
+    } else {
+      setMonthFilter(monthsList[newMonth]);
+    }
+  }}
+/>
 
-            {/* Filtros de Ano e Mês */}
+            {/* Filtros de Ano e Mês 
             <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", alignItems: "center" }}>
                 <label>
                     Ano:&nbsp;
@@ -595,19 +615,39 @@ export default function Dashboard() {
                         ))}
                     </select>
                 </label>
-            </div>
+            </div>*/}
+            <br></br>
+            <br></br>
+<div className="stats-container">
+  <div className="stat-card stat-total">
+    <div className="stat-title">Saldo do Período</div>
+    <div className="stat-value">
+      {formatCurrencyNoDecimals(totalAmount)}{" "}
+      {totalEntradas > 0
+        ? `(${(((totalAmount) / totalEntradas) * 100).toFixed(0)}%)`
+        : ""}
+    </div>
+  </div>
 
-            <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", alignItems: "center" }}>
-                <div style={{ fontWeight: "bold", color: "#7c2ea0" }}>
-                    Total:&nbsp;{formatCurrency(totalAmount)}
-                </div>
-                <div style={{ fontWeight: "bold", color: "#d32f2f" }}>
-                    Saídas:&nbsp;{formatCurrency(totalSaidas)}
-                </div>
-                <div style={{ fontWeight: "bold", color: "#388e3c" }}>
-                    Entradas:&nbsp;{formatCurrency(totalEntradas)}
-                </div>
-            </div>
+  <div className="stat-card stat-saidas">
+    <div className="stat-title">Saídas</div>
+    <div className="stat-value">
+      {formatCurrencyNoDecimals(totalSaidas * -1)}{" "}
+      {totalEntradas > 0
+        ? `(${(((totalSaidas * -1) / totalEntradas) * 100).toFixed(0)}%)`
+        : ""}
+    </div>
+  </div>
+
+  <div className="stat-card stat-entradas">
+    <div className="stat-title">Entradas</div>
+    <div className="stat-value">
+      {formatCurrencyNoDecimals(totalEntradas)}
+    </div>
+  </div>
+</div>
+
+
 
             {/* Conteúdo das abas */}
 
@@ -632,7 +672,7 @@ export default function Dashboard() {
                 <div style={tabStyle("planning")} onClick={() => setActiveTab("planning")}>
                     Planejamento
                 </div>
-                
+
             </div>
 
             {/* Conteúdo das abas */}
@@ -654,6 +694,7 @@ export default function Dashboard() {
 
             {showForm && (
                 <form
+                    id="transactionForm"
                     onSubmit={handleAddOrEditTransaction}
                     style={{
                         marginBottom: "1.5rem",
@@ -931,16 +972,16 @@ export default function Dashboard() {
                                 >
                                     {t.description}
                                 </td>
-                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }} onClick={() => handleEditClick(t)}>
                                     {formatCurrency(t.amount)}
                                 </td>
-                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }} onClick={() => handleEditClick(t)}>
                                     {t.category}
                                 </td>
-                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }} onClick={() => handleEditClick(t)}>
                                     {t.comment}
                                 </td>
-                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }}>
+                                <td style={{ border: "1px solid #ccc", padding: "0.3rem", ...textStyle }} onClick={() => handleEditClick(t)}>
                                     {t.account}
                                 </td>
                             </tr>
