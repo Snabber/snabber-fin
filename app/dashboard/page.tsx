@@ -13,6 +13,7 @@ import PlanningTab from './PlanningTab';
 import BarPerCategory from './BarPerCategory';
 import MonthYearGridPicker from "../../components/MonthYearGridPicker";
 
+
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 function formatDate(dateStr: string) {
@@ -32,12 +33,12 @@ function formatCurrency(value: number | string) {
 }
 
 const formatCurrencyNoDecimals = (value: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+    new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
 
 
 export default function Dashboard() {
@@ -560,7 +561,10 @@ export default function Dashboard() {
     };
 
 
+
+
     return (
+        
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
                 <img src="/img/Logo_Principal.png" alt="Logo" style={{ height: "60px" }} />
@@ -568,6 +572,7 @@ export default function Dashboard() {
 
             {/*<h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>*/}
 
+   
             {/* BOTÃO LOGOUT TOPO DIREITO */}
             <button className="redButton" onClick={handleLogout} style={{ position: "absolute", top: "20px", right: "20px" }}
             >
@@ -575,18 +580,21 @@ export default function Dashboard() {
             </button>
 
 
+            
+
+
             <MonthYearGridPicker
-  year={Number(yearFilter)}
-  month={monthFilter === "Todos" ? "Todos" : monthsList.indexOf(monthFilter)}
-  onChange={(newYear, newMonth) => {
-    setYearFilter(String(newYear));
-    if (newMonth === "Todos") {
-      setMonthFilter("Todos");
-    } else {
-      setMonthFilter(monthsList[newMonth]);
-    }
-  }}
-/>
+                year={Number(yearFilter)}
+                month={monthFilter === "Todos" ? "Todos" : monthsList.indexOf(monthFilter)}
+                onChange={(newYear, newMonth) => {
+                    setYearFilter(String(newYear));
+                    if (newMonth === "Todos") {
+                        setMonthFilter("Todos");
+                    } else {
+                        setMonthFilter(monthsList[newMonth]);
+                    }
+                }}
+            />
 
             {/* Filtros de Ano e Mês 
             <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", alignItems: "center" }}>
@@ -618,34 +626,34 @@ export default function Dashboard() {
             </div>*/}
             <br></br>
             <br></br>
-<div className="stats-container">
-  <div className="stat-card stat-total">
-    <div className="stat-title">Saldo do Período</div>
-    <div className="stat-value">
-      {formatCurrencyNoDecimals(totalAmount)}{" "}
-      {totalEntradas > 0
-        ? `(${(((totalAmount) / totalEntradas) * 100).toFixed(0)}%)`
-        : ""}
-    </div>
-  </div>
+            <div className="stats-container">
+                <div className="stat-card stat-total">
+                    <div className="stat-title">Saldo do Período</div>
+                    <div className="stat-value">
+                        {formatCurrencyNoDecimals(totalAmount)}{" "}
+                        {totalEntradas > 0
+                            ? `(${(((totalAmount) / totalEntradas) * 100).toFixed(0)}%)`
+                            : ""}
+                    </div>
+                </div>
 
-  <div className="stat-card stat-saidas">
-    <div className="stat-title">Saídas</div>
-    <div className="stat-value">
-      {formatCurrencyNoDecimals(totalSaidas * -1)}{" "}
-      {totalEntradas > 0
-        ? `(${(((totalSaidas * -1) / totalEntradas) * 100).toFixed(0)}%)`
-        : ""}
-    </div>
-  </div>
+                <div className="stat-card stat-saidas">
+                    <div className="stat-title">Saídas</div>
+                    <div className="stat-value">
+                        {formatCurrencyNoDecimals(totalSaidas * -1)}{" "}
+                        {totalEntradas > 0
+                            ? `(${(((totalSaidas * -1) / totalEntradas) * 100).toFixed(0)}%)`
+                            : ""}
+                    </div>
+                </div>
 
-  <div className="stat-card stat-entradas">
-    <div className="stat-title">Entradas</div>
-    <div className="stat-value">
-      {formatCurrencyNoDecimals(totalEntradas)}
-    </div>
-  </div>
-</div>
+                <div className="stat-card stat-entradas">
+                    <div className="stat-title">Entradas</div>
+                    <div className="stat-value">
+                        {formatCurrencyNoDecimals(totalEntradas)}
+                    </div>
+                </div>
+            </div>
 
 
 

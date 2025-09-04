@@ -1,15 +1,28 @@
 "use client";
+import Link from "next/link";
 import type { Transaction } from "../types/transaction";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import type { BankParseParam } from "../types/bank_params";
 
 type Props = {
   files: File[];
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onProcessFiles: () => void;
+  onProcessFiles: (paramId: number) => void;
 };
 
 export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }: Props) {
+  const [bankParams, setBankParams] = useState<BankParseParam[]>([]);
+  const [selectedParamId, setSelectedParamId] = useState<number>(0); // default "Padrão"
+
+  useEffect(() => {
+    // Carrega os bank params do backend
+    fetch("/api/bank-params")
+      .then((res) => res.json())
+      .then((data) => setBankParams(data))
+      .catch(console.error);
+  }, []);
+
   return (
     <div
       onDrop={onDrop}
@@ -23,6 +36,22 @@ export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }:
         backgroundColor: "#fff",
       }}
     >
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={{ fontWeight: "bold", marginRight: "0.5rem" }}>Source:</label>
+        <select
+          value={selectedParamId}
+          onChange={(e) => setSelectedParamId(Number(e.target.value))}
+          style={{ padding: "0.4rem 0.6rem", borderRadius: "4px" }}
+        >
+          <option value={0}>Padrão</option> {/* opção padrão vem selecionada */}
+          {bankParams.map((param) => (
+            <option key={param.id} value={param.id}>
+              {param.source}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <p>Arraste arquivos .txt ou .csv aqui</p>
       <p style={{ fontSize: "0.9rem", color: "#666" }}>
         (Você pode soltar múltiplos arquivos)
@@ -37,7 +66,7 @@ export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }:
             ))}
           </ul>
           <button
-            onClick={onProcessFiles}
+            onClick={() => onProcessFiles(selectedParamId)}
             style={{
               marginTop: "0.5rem",
               backgroundColor: "#7c2ea0",
