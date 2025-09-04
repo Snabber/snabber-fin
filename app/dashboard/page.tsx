@@ -315,6 +315,24 @@ export default function Dashboard() {
         setTimeout(() => toast.remove(), 5000);
     }
 
+    function showToastGreen(message: string) {
+        const toast = document.createElement("div");
+        toast.innerText = message;
+        toast.style.position = "fixed";
+        toast.style.top = "20px";
+        toast.style.right = "20px";
+        toast.style.background = "green";
+        toast.style.color = "white";
+        toast.style.padding = "12px 20px";
+        toast.style.borderRadius = "8px";
+        toast.style.boxShadow = "0 4px 10px rgba(0,0,0,0.2)";
+        toast.style.zIndex = "9999";
+        document.body.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 5000);
+    }
+
+
     const handleCloneTransaction = async () => {
         try {
             // Se não houver data, coloca a data de hoje automaticamente
@@ -336,6 +354,9 @@ export default function Dashboard() {
                     return;
                 }
                 throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            else{
+                showToastGreen("Transação clonada com sucesso!"); // toast verde flutuante
             }
             const newTransaction = await res.json();
             setTransactions((prev) => [newTransaction, ...prev]);
@@ -374,6 +395,9 @@ export default function Dashboard() {
                         return;
                     }
                     throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                else{
+                    showToastGreen("Transação atualizada com sucesso!"); // toast verde flutuante
                 }
                 setTransactions((prev) =>
                     prev.map((t) =>
@@ -485,6 +509,9 @@ export default function Dashboard() {
                 }),
             });
             if (!res.ok) throw new Error("Erro na atualização em massa");
+            else{
+                showToastGreen("Transação atualizada com sucesso!"); // toast verde flutuante
+            }
 
             setTransactions((prev) =>
                 prev.map((t) =>
@@ -610,6 +637,9 @@ export default function Dashboard() {
             } else {
                 await loadTransactions();
             }
+
+            showToastGreen(message); // toast vermelho flutuante
+            
         } else {
             await loadTransactions();
             showToast(data.error); // toast vermelho flutuante
