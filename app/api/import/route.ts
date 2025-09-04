@@ -184,7 +184,7 @@ async function parseBankTransactions(
     console.log(`Importando ${source} - Linhas: ${jsonData.length} - Usuário: ${userId}`);
     console.log(`Parâmetros: colDate=${colDate}, colDesc=${colDesc}, colValSpent=${colValSpent}, colValEarned=${colValEarned}, colComment=${colComment}, removeDots=${removeDots}, startRow=${startRow}, changeSignal=${changeSignal}, colCategory=${colCategory}`);
 
-    
+
 
     // Define a linha inicial, você pode parametrizar se quiser
 
@@ -275,9 +275,9 @@ async function parseBankTransactions(
             category,
         });
 
-        if (debugLevel > 0)  console.log(`11_ Transaction Count: ${transactions.length}`);
+        if (debugLevel > 0) console.log(`11_ Transaction Count: ${transactions.length}`);
 
-        
+
     }
 }
 
@@ -308,6 +308,10 @@ export async function POST(req: NextRequest) {
         const files = formData.getAll("files") as any[];
         const userId = Number(formData.get("userId") || 0);
 
+        // Novo: pega o ID da source enviada pelo dropdown
+        const selectedParamId = Number(formData.get("sourceId") || 0); // 0 = Padrão
+        //let selectedSource = "5"; // default CSV puro
+
 
         for (const file of files) {
             const name = file.name.toLowerCase();
@@ -325,23 +329,40 @@ export async function POST(req: NextRequest) {
                 }
                 catch { }
 
-
-
                 let source = "5"; // padrão CSV puro
 
-                // Verifica se jsonData existe e tem linhas suficientes
-                if (jsonData?.length) {
-                    const row7 = jsonData[7];
-                    const row6 = jsonData[6];
-                    const row8 = jsonData[8];
-                    const row1 = jsonData[1];
+                if (selectedParamId !== 0) {
 
-                    // Checa se as linhas e a célula 0 existem antes de comparar
-                    if ((row7?.[0] === "Data") || (row6?.[0] === "Data") || (row8?.[0] === "Data")) {
-                        source = "Bradesco";
-                    } else if (row1?.[2] === "Bradesco Internet Banking") {
-                        source = "Amex";
+                    console.debug(`Selected Parameter: ${selectedParamId}`);
+
+                    
+                    // Se não for padrão, busca a source no banco
+                    const param = await pool.query(
+                        "SELECT source FROM bank_parse_params WHERE id = ? LIMIT 1",
+                        [selectedParamId]
+                    );
+                    const rows = (param as any[])[0] || [];
+                    if (rows.length > 0) {
+                        source = rows[0].source;
                     }
+                   
+                }
+                else {
+                    // Verifica se jsonData existe e tem linhas suficientes
+                    if (jsonData?.length) {
+                        const row7 = jsonData[7];
+                        const row6 = jsonData[6];
+                        const row8 = jsonData[8];
+                        const row1 = jsonData[1];
+
+                        // Checa se as linhas e a célula 0 existem antes de comparar
+                        if ((row7?.[0] === "Data") || (row6?.[0] === "Data") || (row8?.[0] === "Data")) {
+                            source = "Bradesco";
+                        } else if (row1?.[2] === "Bradesco Internet Banking") {
+                            source = "Amex";
+                        }
+                    }
+
                 }
 
 
@@ -351,6 +372,7 @@ export async function POST(req: NextRequest) {
                     //parametros padroes
                     await parseBankTransactions(jsonData, 0, 1, 2, 2, 4, source, userId, false, transactions, 2, false, "3");
                 } else {
+                    console.debug(`Utilizando: ${source}`);
                     await parseBankTransactions(
                         jsonData,
                         params.colDate,

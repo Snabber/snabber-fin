@@ -46,23 +46,42 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    try {
-        const { date, description, amount, category, comment, account, userId } = await req.json();
-        if (!date || !description || !amount || !category || !userId) {
-            return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
-        }
-        const [result] = await pool.query(
-            "INSERT INTO money_transactions (date, description, amount, category, comment, account, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [date, description, amount, category, comment, account, userId]
-        );
-        // Retorna o registro criado
-        const [rows] = await pool.query(
-            "SELECT * FROM money_transactions WHERE transaction_id = ?",
-            [(result as any).insertId]
-        ) as [any[], any];
-        return NextResponse.json(rows[0]);
-    } catch (err) {
-        console.error(err);
-        return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+  try {
+    const { date, description, amount, category, comment, account, userId } = await req.json();
+
+    if (!date || !description || !amount || !category || !userId) {
+      return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
     }
+
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO money_transactions (date, description, amount, category, comment, account, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [date, description, amount, category, comment, account, userId]
+      );
+
+      // Retorna o registro criado
+      const [rows] = await pool.query(
+        "SELECT * FROM money_transactions WHERE transaction_id = ?",
+        [(result as any).insertId]
+      ) as [any[], any];
+
+      return NextResponse.json(rows[0]);
+    } catch (err: any) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return NextResponse.json(
+          {
+            error: "Transação já existe! Experimente modificar data, comentário, valor ou descrição.",
+            type: "duplicate",
+          },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
+
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+  }
 }
+

@@ -86,6 +86,54 @@ export default function Dashboard() {
     //const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : "0";
     const [userId, setUserId] = useState<string | null>(null);
 
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (form: any) => {
+        const res = await fetch(`/api/transactions/${form.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(form),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            if (data.type === "duplicate") {
+                setError(data.error);
+            } else {
+                setError("Erro ao atualizar transação");
+            }
+            return;
+        }
+
+        setError(null);
+        // atualizar lista de transações, etc
+    };
+
+
+
+    // useEffect para auto-hide do toast
+    useEffect(() => {
+        if (!error) return;
+
+        const timer = setTimeout(() => {
+            setError(null);
+        }, 5000); // desaparece após 5s
+
+        return () => clearTimeout(timer);
+    }, [error]);
+
+    // useEffect para auto-hide do toast
+    useEffect(() => {
+        if (!error) return;
+
+        const timer = setTimeout(() => {
+            setError(null);
+        }, 5000); // desaparece após 5s
+
+        return () => clearTimeout(timer);
+    }, [error]);
+
 
     useEffect(() => {
         setUserId(localStorage.getItem("userId"));
@@ -250,6 +298,66 @@ export default function Dashboard() {
         );
     }, [filterText, columnFilters, transactions]);
 
+    function showToast(message: string) {
+        const toast = document.createElement("div");
+        toast.innerText = message;
+        toast.style.position = "fixed";
+        toast.style.top = "20px";
+        toast.style.right = "20px";
+        toast.style.background = "red";
+        toast.style.color = "white";
+        toast.style.padding = "12px 20px";
+        toast.style.borderRadius = "8px";
+        toast.style.boxShadow = "0 4px 10px rgba(0,0,0,0.2)";
+        toast.style.zIndex = "9999";
+        document.body.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 5000);
+    }
+
+    const handleCloneTransaction = async () => {
+        try {
+            // Se não houver data, coloca a data de hoje automaticamente
+            const today = new Date().toISOString().slice(0, 10);
+            const res = await fetch("/api/transactions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...form,
+                    date: form.date || today,
+                    amount: Number(form.amount),
+                    userId
+                }),
+            });
+            if (!res.ok) {
+                if (res.status === 409) {
+                    const data = await res.json();
+                    showToast(data.error); // toast vermelho flutuante
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            const newTransaction = await res.json();
+            setTransactions((prev) => [newTransaction, ...prev]);
+
+            // Reset do form
+            setForm({
+                date: getToday(),
+                description: "",
+                amount: "",
+                category: "",
+                comment: "",
+                account: "",
+            });
+            setShowForm(false);
+            setEditingId(null);
+            
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao clonar a transação.");
+        }
+    };
+
     const handleAddOrEditTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -259,7 +367,14 @@ export default function Dashboard() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ ...form, amount: Number(form.amount), userId }),
                 });
-                if (!res.ok) throw new Error(`Erro ao editar: ${res.status}`);
+                if (!res.ok) {
+                    if (res.status === 409) {
+                        const data = await res.json();
+                        showToast(data.error); // toast vermelho flutuante
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
                 setTransactions((prev) =>
                     prev.map((t) =>
                         t.transaction_id === editingId
@@ -464,10 +579,12 @@ export default function Dashboard() {
     // === ENVIAR CONTEÚDOS PARA OUTRA ROTA ===
 
 
-    const handleProcessFiles = async () => {
+    const handleProcessFiles = async (sourceId: number) => {
         const formData = new FormData();
         files.forEach((f) => formData.append("files", f));
         formData.append("userId", localStorage.getItem("userId")!);
+        formData.append("sourceId", sourceId.toString()); // <-- aqui
+
 
         const res = await fetch("/api/import", {
             method: "POST",
@@ -495,7 +612,8 @@ export default function Dashboard() {
             }
         } else {
             await loadTransactions();
-            alert("Erro ao processar arquivos. Tente novamente.");
+            showToast(data.error); // toast vermelho flutuante
+            /*alert("Erro ao processar arquivos. Tente novamente.");*/
         }
     };
 
@@ -564,7 +682,7 @@ export default function Dashboard() {
 
 
     return (
-        
+
         <div style={{ padding: "2rem", fontFamily: "sans-serif", backgroundColor: "#f5f5f5" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
                 <img src="/img/Logo_Principal.png" alt="Logo" style={{ height: "60px" }} />
@@ -572,7 +690,7 @@ export default function Dashboard() {
 
             {/*<h1 style={{ fontSize: "2rem", color: "#7c2ea0", marginBottom: "1rem" }}>Dashboard</h1>*/}
 
-   
+
             {/* BOTÃO LOGOUT TOPO DIREITO */}
             <button className="redButton" onClick={handleLogout} style={{ position: "absolute", top: "20px", right: "20px" }}
             >
@@ -580,7 +698,31 @@ export default function Dashboard() {
             </button>
 
 
-            
+
+            {/* Modal flutuante no canto direito */}
+            {error && (
+                <div className="fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-slide-in">
+                    {error}
+                </div>
+            )}
+
+            {/* Optional: animação simples com Tailwind */}
+            <style jsx>{`
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        @keyframes slide-in {
+          0% {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
 
 
             <MonthYearGridPicker
@@ -830,6 +972,25 @@ export default function Dashboard() {
                     >
                         {editingId ? "Salvar Alterações" : "Adicionar"}
                     </button>
+
+                    {editingId && showForm && (
+                        <button
+                            type="button" 
+                            className="greenButton"
+                            onClick={handleCloneTransaction}
+                            style={{
+                                backgroundColor: "#7c2ea0",
+                                color: "white",
+                                padding: "0.5rem 1rem",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                marginTop: "0.5rem",
+                            }}
+                        >
+                            Clonar Transação
+                        </button>
+                    )}
+
                 </form>
             )}
 
@@ -841,6 +1002,7 @@ export default function Dashboard() {
                 <button className="purpleButton" onClick={() => setShowForm(!showForm)}>
                     {showForm ? "Fechar" : editingId ? "Editar Transação" : "Adicionar Transação"}
                 </button>
+
 
                 <input
                     type="text"

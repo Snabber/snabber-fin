@@ -13,7 +13,7 @@ type Props = {
 
 export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }: Props) {
   const [bankParams, setBankParams] = useState<BankParseParam[]>([]);
-  const [selectedParamId, setSelectedParamId] = useState<number>(0); // default "Padrão"
+  const [selectedParamId, setSelectedParamId] = useState<number>(0); // 0 = Padrão
 
   useEffect(() => {
     // Carrega os bank params do backend
@@ -36,6 +36,14 @@ export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }:
         backgroundColor: "#fff",
       }}
     >
+      {/* Link para voltar ao painel */}
+      <div style={{ marginBottom: "1rem" }}>
+        <Link href="/admin-panel" style={{ color: "#7c2ea0", fontWeight: "bold" }}>
+          Painel Admin
+        </Link>
+      </div>
+
+      {/* Dropdown de fontes */}
       <div style={{ marginBottom: "1rem" }}>
         <label style={{ fontWeight: "bold", marginRight: "0.5rem" }}>Source:</label>
         <select
@@ -43,7 +51,7 @@ export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }:
           onChange={(e) => setSelectedParamId(Number(e.target.value))}
           style={{ padding: "0.4rem 0.6rem", borderRadius: "4px" }}
         >
-          <option value={0}>Padrão</option> {/* opção padrão vem selecionada */}
+          <option value={0}>Padrão</option> {/* opção padrão selecionada */}
           {bankParams.map((param) => (
             <option key={param.id} value={param.id}>
               {param.source}
@@ -57,6 +65,7 @@ export default function UploadTab({ files, onDrop, onDragOver, onProcessFiles }:
         (Você pode soltar múltiplos arquivos)
       </p>
 
+      {/* Lista de arquivos carregados */}
       {files.length > 0 && (
         <div style={{ marginTop: "1rem", textAlign: "left" }}>
           <strong>Arquivos carregados:</strong>

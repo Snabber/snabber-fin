@@ -24,17 +24,13 @@ export async function PUT(
       return NextResponse.json({ error: "userId obrigatório" }, { status: 400 });
     }
 
-    // 1️⃣ Verifica se a categoria existe para o usuário
-    if (category && category.trim() !== "") {
+    // 1️⃣ Verifica categoria
+    if (category?.trim()) {
       const [rows] = await pool.query(
         `SELECT id FROM user_categories WHERE user_id = ? AND category = ?`,
         [userId, category]
       );
-
-      const exists = (rows as any[]).length > 0;
-
-      if (!exists) {
-        // 2️⃣ Se não existir, insere
+      if ((rows as any[]).length === 0) {
         await pool.query(
           `INSERT INTO user_categories (user_id, category) VALUES (?, ?)`,
           [userId, category]
@@ -42,13 +38,28 @@ export async function PUT(
       }
     }
 
-    // 3️⃣ Atualiza a transação
-    await pool.query(
-      `UPDATE money_transactions
-       SET date = ?, description = ?, amount = ?, category = ?, comment = ?, account = ?
-       WHERE transaction_id = ?`,
-      [date, description, amount, category, comment, account, id]
-    );
+    // 2️⃣ Tenta atualizar a transação
+    try {
+      await pool.query(
+        `UPDATE money_transactions
+         SET date = ?, description = ?, amount = ?, category = ?, comment = ?, account = ?
+         WHERE transaction_id = ?`,
+        [date, description, amount, category, comment, account, id]
+      );
+    } catch (err: any) {
+      // 3️⃣ Lida com duplicidade
+      if (err.code === "ER_DUP_ENTRY") {
+        return NextResponse.json(
+          {
+            error:
+              "Transação já existe! Experimente modificar a data, comentário, valor ou descrição.",
+            type: "duplicate",
+          },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
